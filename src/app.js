@@ -111,6 +111,8 @@ function loadState() {
   }
 }
 
+let cloudDebounceTimer = null;
+
 function saveState(skipCloud = false) {
   try {
     localStorage.setItem('band_pay_queue', JSON.stringify(state.queue));
@@ -125,6 +127,21 @@ function saveState(skipCloud = false) {
   } catch (e) {
     console.error('Failed to save state:', e);
   }
+}
+
+/**
+ * Saves to localStorage immediately, and debounces cloud push
+ * to prevent flickering/focus-loss while typing.
+ */
+function debouncedSaveState(delayMs = 1000) {
+  try {
+    localStorage.setItem('band_pay_queue', JSON.stringify(state.queue));
+    localStorage.setItem('band_pay_name', state.bandName);
+    if (cloudDebounceTimer) clearTimeout(cloudDebounceTimer);
+    cloudDebounceTimer = setTimeout(() => {
+      syncToCloud();
+    }, delayMs);
+  } catch (e) {}
 }
 
 /**
@@ -160,7 +177,10 @@ async function syncToCloud() {
     state.cloudStatus = 'offline';
   } finally {
     state.isSyncing = false;
-    render();
+    // Never re-render if a modal is open; doing so would destroy modal DOM, focus, scroll, and virtual keyboard
+    if (!state.activeModal) {
+      render();
+    }
   }
 }
 
@@ -175,36 +195,38 @@ async function fetchFromCloud() {
   }
 
   state.cloudStatus = 'connecting';
-  render();
+  if (!state.activeModal) render();
 
   try {
     const res = await fetch(`${url}/rehearsal.json`);
     if (!res.ok) {
       state.cloudStatus = 'offline';
-      render();
+      if (!state.activeModal) render();
       return false;
     }
 
     const data = await res.json();
     if (data && Array.isArray(data.queue) && data.queue.length > 0) {
-      state.queue = data.queue;
-      if (data.bandName) state.bandName = data.bandName;
-      if (Array.isArray(data.history)) state.history = data.history;
+      if (state.activeModal !== 'roster') {
+        state.queue = data.queue;
+        if (data.bandName) state.bandName = data.bandName;
+        if (Array.isArray(data.history)) state.history = data.history;
+      }
       saveState(true); // save to localStorage without re-pushing
       state.cloudStatus = 'connected';
-      render();
+      if (!state.activeModal) render();
       return true;
     } else {
       // Database exists but is empty -> push our current state to populate it
       await syncToCloud();
       state.cloudStatus = 'connected';
-      render();
+      if (!state.activeModal) render();
       return true;
     }
   } catch (err) {
     console.warn('Failed to fetch from Firebase:', err);
     state.cloudStatus = 'offline';
-    render();
+    if (!state.activeModal) render();
     return false;
   }
 }
@@ -233,6 +255,11 @@ function initRealtimeLiveSync() {
         if (!payload) return;
 
         if (payload.path === '/' && payload.data && Array.isArray(payload.data.queue)) {
+          // If user is currently editing the roster in the modal, do not disrupt with incoming SSE updates or loopbacks
+          if (state.activeModal === 'roster') {
+            return;
+          }
+
           // Check if incoming state is different from local state
           const currentFirstId = state.queue[0]?.id;
           const incomingFirstId = payload.data.queue[0]?.id;
@@ -250,10 +277,13 @@ function initRealtimeLiveSync() {
             const nextPayer = state.queue[0]?.name || 'Next member';
             showToast(`Live update from bandmate! Next up: ${nextPayer}`);
           }
-          render();
+          if (!state.activeModal) {
+            render();
+          }
         } else if (payload.path && payload.path !== '/') {
-          // Sub-path change, trigger full fetch
-          fetchFromCloud();
+          if (!state.activeModal) {
+            fetchFromCloud();
+          }
         }
       } catch (parseErr) {
         console.warn('SSE parsing error:', parseErr);
@@ -262,13 +292,13 @@ function initRealtimeLiveSync() {
 
     cloudEventSource.onopen = () => {
       state.cloudStatus = 'connected';
-      render();
+      if (!state.activeModal) render();
     };
 
     cloudEventSource.onerror = () => {
       // EventSource auto-reconnects natively
       state.cloudStatus = 'offline';
-      render();
+      if (!state.activeModal) render();
     };
   } catch (err) {
     console.warn('EventSource initialization error:', err);
@@ -1033,7 +1063,12 @@ function attachEventListeners() {
   const modalCloseBtn = document.getElementById('modal-close');
   const sheetDoneBtn = document.getElementById('sheet-btn-done');
   [modalCloseBtn, sheetDoneBtn].forEach(b => {
-    if (b) b.addEventListener('click', () => { state.activeModal = null; render(); });
+    if (b) b.addEventListener('click', () => {
+      if (cloudDebounceTimer) clearTimeout(cloudDebounceTimer);
+      saveState(); // push any pending edits to cloud immediately
+      state.activeModal = null;
+      render();
+    });
   });
 
   // Roster Modal Listeners
@@ -1041,7 +1076,14 @@ function attachEventListeners() {
     const bandNameInput = document.getElementById('sheet-band-name');
     if (bandNameInput) {
       bandNameInput.addEventListener('input', (e) => {
-        state.bandName = e.target.value.trim() || DEFAULT_BAND_NAME;
+        state.bandName = e.target.value;
+        debouncedSaveState(1200);
+      });
+      bandNameInput.addEventListener('blur', () => {
+        if (!state.bandName.trim()) {
+          state.bandName = DEFAULT_BAND_NAME;
+          bandNameInput.value = DEFAULT_BAND_NAME;
+        }
         saveState();
       });
     }
@@ -1053,8 +1095,11 @@ function attachEventListeners() {
         const field = input.getAttribute('data-field');
         if (state.queue[idx]) {
           state.queue[idx][field] = e.target.value;
-          saveState();
+          debouncedSaveState(1200);
         }
+      });
+      input.addEventListener('change', () => {
+        saveState();
       });
     });
 
