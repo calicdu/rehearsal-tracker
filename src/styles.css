@@ -2,9 +2,7 @@
 :root {
   --bg-app: #090a0f;
   --bg-card: #11141c;
-  --bg-card-subtle: #171b26;
   --border-color: #1f2433;
-  --border-active: #2d354a;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --accent-cyan: #38bdf8;
@@ -127,12 +125,6 @@ input, select, textarea, button {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 20px;
-}
-
-.lean-card-subtle {
-  background: var(--bg-card-subtle);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
 }
 
 /* Hardware style badge */
