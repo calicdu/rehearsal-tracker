@@ -1,12 +1,12 @@
 {
-  "name": "Band Rehearsal Pay Tracker",
-  "short_name": "Pay Tracker",
-  "description": "Never argue about who pays for band rehearsal again. A rotational payment queue for bands.",
+  "name": "Band Rehearsal Tracker",
+  "short_name": "Rehearsals",
+  "description": "Rotational payment queue for band rehearsals.",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#090d16",
-  "theme_color": "#4f46e5",
+  "background_color": "#0b0c0e",
+  "theme_color": "#0b0c0e",
   "icons": [
     {
       "src": "./assets/icons/icon.svg",

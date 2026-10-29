@@ -5,8 +5,8 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-success.svg)
-![Dependencies: Zero](https://img.shields.io/badge/Dependencies-0%20(Pure%20HTML%2FJS)-indigo.svg)
-![PWA Ready](https://img.shields.io/badge/PWA-Offline%20Ready-purple.svg)
+![Dependencies: Zero](https://img.shields.io/badge/Dependencies-0%20(Pure%20HTML%2FJS)-black.svg)
+![Design: Lean Mobile First](https://img.shields.io/badge/Design-Lean%20Mobile--First-green.svg)
 
 ---
 
