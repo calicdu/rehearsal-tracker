@@ -1,6 +1,6 @@
 /**
- * Band Rehearsal Tracker - Lean Mobile-First Core
- * Engineered for phone use, zero dependencies, offline capable.
+ * Band Rehearsal Tracker - Modern Obsidian & Slate Edition
+ * Clean typography (Geist), refined dark palette, zero dependencies.
  */
 
 // Default starter roster
@@ -41,7 +41,7 @@ function getAudioContext() {
 }
 
 /**
- * Lean, tactile audio click/chime on action.
+ * Subtle, modern acoustic click on action.
  */
 function playTactileFeedback() {
   if (!state.soundEnabled) return;
@@ -53,19 +53,18 @@ function playTactileFeedback() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    // Clean, modern acoustic woodblock / tactile click
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.exponentialRampToValueAtTime(400, now + 0.04);
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(440, now + 0.035);
 
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.05);
+    osc.stop(now + 0.04);
   } catch (e) {}
 }
 
@@ -108,7 +107,7 @@ function saveState() {
 }
 
 /**
- * Mobile-friendly Toast Alert
+ * Modern Toast Alert
  */
 let toastTimer = null;
 function showToast(message, actionText = null, onAction = null, duration = 4000) {
@@ -118,10 +117,10 @@ function showToast(message, actionText = null, onAction = null, duration = 4000)
   if (toastTimer) clearTimeout(toastTimer);
 
   container.innerHTML = `
-    <div class="bg-[#1c1f24] border border-[#2f3540] text-[#f4f4f6] px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 text-sm toast-anim">
+    <div class="bg-[#151924] border border-[#273044] text-[#f8fafc] px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 text-sm toast-anim">
       <span class="font-medium truncate">${message}</span>
       ${actionText ? `
-        <button id="toast-action-btn" class="flex-shrink-0 text-xs font-bold bg-[#d2f83c] hover:bg-[#bfe628] text-black px-3 py-1.5 rounded-xl tap-btn">
+        <button id="toast-action-btn" class="flex-shrink-0 text-xs font-bold bg-white hover:bg-slate-100 text-slate-950 px-3 py-1.5 rounded-xl tap-btn">
           ${actionText}
         </button>
       ` : ''}
@@ -376,7 +375,7 @@ function getMemberStats() {
 }
 
 /**
- * Core Render Loop (Mobile-First Layout)
+ * Core Render Loop (Modern Obsidian & Slate)
  */
 function render() {
   const app = document.getElementById('root');
@@ -387,15 +386,15 @@ function render() {
   const hasUndo = state.undoStack.length > 0;
 
   app.innerHTML = `
-    <!-- Top Mobile Header -->
-    <header class="py-3 flex items-center justify-between border-b border-[#24272d] gap-2">
+    <!-- Top Modern Header -->
+    <header class="py-3.5 flex items-center justify-between border-b border-[#1f2433] gap-2">
       <div class="flex items-center space-x-2.5 min-w-0 flex-1">
-        <div class="w-8 h-8 rounded-lg bg-[#191c20] border border-[#24272d] flex items-center justify-center text-[#d2f83c] flex-shrink-0">
+        <div class="w-8 h-8 rounded-lg bg-[#141824] border border-[#23293a] flex items-center justify-center text-sky-400 flex-shrink-0">
           ${icon('music', 'w-4 h-4')}
         </div>
         <div class="min-w-0 flex-1">
           <h1 class="text-base font-bold text-white truncate leading-tight">${escapeHtml(state.bandName)}</h1>
-          <p class="text-[11px] text-[#8b929e] truncate">${state.queue.length} in rotation</p>
+          <p class="text-[11px] text-[#94a3b8] truncate font-mono">${state.queue.length} in rotation</p>
         </div>
       </div>
 
@@ -403,7 +402,7 @@ function render() {
         <button 
           id="btn-sound-toggle"
           title="${state.soundEnabled ? 'Mute' : 'Unmute'}"
-          class="w-8 h-8 flex items-center justify-center text-[#8b929e] hover:text-white rounded-lg hover:bg-[#191c20] tap-btn"
+          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
         >
           ${icon(state.soundEnabled ? 'volume2' : 'volumeX', 'w-4 h-4')}
         </button>
@@ -411,7 +410,7 @@ function render() {
         <button 
           id="btn-open-stats"
           title="Payment Stats"
-          class="w-8 h-8 flex items-center justify-center text-[#8b929e] hover:text-white rounded-lg hover:bg-[#191c20] tap-btn"
+          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
         >
           ${icon('barChart', 'w-4 h-4')}
         </button>
@@ -419,7 +418,7 @@ function render() {
         <button 
           id="btn-open-share"
           title="Share Link"
-          class="w-8 h-8 flex items-center justify-center text-[#8b929e] hover:text-white rounded-lg hover:bg-[#191c20] tap-btn"
+          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
         >
           ${icon('share2', 'w-4 h-4')}
         </button>
@@ -427,49 +426,49 @@ function render() {
         <button 
           id="btn-open-roster"
           title="Roster Settings"
-          class="w-8 h-8 flex items-center justify-center text-[#8b929e] hover:text-white rounded-lg hover:bg-[#191c20] tap-btn"
+          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
         >
           ${icon('settings', 'w-4 h-4')}
         </button>
       </div>
     </header>
 
-    <!-- Main Mobile Content -->
+    <!-- Main Content -->
     <main class="py-4 space-y-4 flex-grow">
 
       <!-- Incoming Band Update Banner -->
       ${state.pendingSyncData ? `
-        <div class="lean-card p-3.5 bg-[#141619] border-[#d2f83c]/50 flex items-center justify-between gap-3">
+        <div class="lean-card p-3.5 bg-[#121622] border-sky-500/40 flex items-center justify-between gap-3 shadow-sm">
           <div class="min-w-0 text-xs flex-1">
-            <span class="font-bold text-[#d2f83c] block">New Band Sync Available</span>
-            <span class="text-[#8b929e] truncate block">Next to pay: <strong>${escapeHtml(state.pendingSyncData.queue[0]?.name || 'N/A')}</strong></span>
+            <span class="font-bold text-sky-400 block">New Band Sync Available</span>
+            <span class="text-[#94a3b8] truncate block">Next to pay: <strong>${escapeHtml(state.pendingSyncData.queue[0]?.name || 'N/A')}</strong></span>
           </div>
           <div class="flex items-center space-x-1.5 flex-shrink-0">
-            <button id="btn-sync-dismiss" class="px-2.5 py-1 text-xs text-[#8b929e] hover:text-white tap-btn">Dismiss</button>
-            <button id="btn-sync-apply" class="px-3 py-1 text-xs font-bold bg-[#d2f83c] text-black rounded-lg tap-btn">Apply</button>
+            <button id="btn-sync-dismiss" class="px-2.5 py-1 text-xs text-[#94a3b8] hover:text-white tap-btn">Dismiss</button>
+            <button id="btn-sync-apply" class="px-3 py-1 text-xs font-bold bg-white text-slate-950 rounded-lg tap-btn">Apply</button>
           </div>
         </div>
       ` : ''}
 
-      <!-- HERO: WHO PAYS NEXT (Lean & High-Contrast) -->
-      <section class="lean-card p-4 sm:p-5 space-y-4">
+      <!-- HERO: WHO PAYS NEXT (Crisp Modern Card) -->
+      <section class="lean-card p-4 sm:p-5 space-y-4 shadow-sm">
         
         <!-- Header row on card: Label & Quick Actions -->
         <div class="flex items-center justify-between gap-2">
-          <span class="badge-pill px-2.5 py-1 rounded-md bg-[#1d2026] text-[#8b929e] border border-[#2b303a] flex-shrink-0">
+          <span class="badge-pill px-2.5 py-1 rounded-md bg-[#161a26] text-sky-400 border border-[#252c40] flex-shrink-0">
             #01 • NEXT REHEARSAL
           </span>
           
           <div class="flex items-center gap-2 flex-shrink-0">
             ${state.queue.length > 1 ? `
-              <button id="btn-swap-turn" class="text-xs font-semibold text-[#8b929e] hover:text-white flex items-center gap-1 tap-btn">
+              <button id="btn-swap-turn" class="text-xs font-medium text-[#94a3b8] hover:text-white flex items-center gap-1 tap-btn">
                 ${icon('swap', 'w-3.5 h-3.5')}
                 <span>Swap turn</span>
               </button>
             ` : ''}
 
             ${hasUndo ? `
-              <button id="btn-hero-undo" class="text-xs font-semibold text-[#8b929e] hover:text-white flex items-center gap-1 tap-btn">
+              <button id="btn-hero-undo" class="text-xs font-medium text-[#94a3b8] hover:text-white flex items-center gap-1 tap-btn">
                 ${icon('rotateCcw', 'w-3.5 h-3.5')}
                 <span>Undo</span>
               </button>
@@ -482,16 +481,16 @@ function render() {
           <div class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-none break-words">
             ${escapeHtml(currentPayer.name)}
           </div>
-          <div class="text-sm font-medium text-[#8b929e] mt-1.5 truncate">
+          <div class="text-sm font-medium text-[#94a3b8] mt-1.5 truncate">
             ${escapeHtml(currentPayer.role || 'Band Member')}
           </div>
         </div>
 
         <!-- Up Next Preview Row -->
-        <div class="flex items-center justify-between py-2 px-3 rounded-xl bg-[#0b0c0e] border border-[#20232a] text-xs gap-2">
-          <span class="text-[#8b929e] font-medium flex-shrink-0">Up next afterwards:</span>
+        <div class="flex items-center justify-between py-2.5 px-3 rounded-xl bg-[#0c0e14] border border-[#1b202e] text-xs gap-2">
+          <span class="text-[#94a3b8] font-medium flex-shrink-0">Up next afterwards:</span>
           <span class="font-bold text-white truncate text-right">
-            ${escapeHtml(nextPayer.name)} <span class="text-[#8b929e] font-normal">(${escapeHtml(nextPayer.role || '')})</span>
+            ${escapeHtml(nextPayer.name)} <span class="text-[#94a3b8] font-normal truncate">(${escapeHtml(nextPayer.role || '')})</span>
           </span>
         </div>
 
@@ -501,28 +500,28 @@ function render() {
             id="cost-note-input"
             type="text"
             placeholder="Add note (e.g. $50 @ Soundstage)"
-            class="w-full bg-[#0b0c0e] border border-[#24272d] focus:border-[#d2f83c] rounded-xl px-3.5 py-3 text-sm text-white placeholder-[#5a6270] outline-none"
+            class="w-full bg-[#0c0e14] border border-[#1e2332] focus:border-sky-400 focus:ring-1 focus:ring-sky-400/30 rounded-xl px-3.5 py-3 text-sm text-white placeholder-[#525d73] outline-none transition-all"
           />
         </div>
 
-        <!-- PRIMARY ACTION: Thumb-friendly Mark Paid Button -->
+        <!-- PRIMARY ACTION: High-contrast Pure White Button -->
         <button
           id="btn-mark-paid"
-          class="w-full min-h-[52px] py-3.5 px-4 bg-[#d2f83c] hover:bg-[#bfe628] text-black font-extrabold text-sm sm:text-base rounded-xl flex items-center justify-center gap-1.5 tap-btn shadow-sm leading-tight text-center flex-wrap"
+          class="w-full min-h-[52px] py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold text-sm sm:text-base rounded-xl flex items-center justify-center gap-2 tap-btn shadow-sm leading-tight text-center"
         >
           <span>${escapeHtml(currentPayer.name)} Paid</span>
-          <span class="opacity-60">•</span>
+          <span class="text-slate-400">•</span>
           <span>Rotate to ${escapeHtml(nextPayer.name)}</span>
-          ${icon('arrowRight', 'w-4 h-4')}
+          ${icon('arrowRight', 'w-4 h-4 text-slate-950')}
         </button>
 
       </section>
 
-      <!-- ROTATION QUEUE LIST (Lean Mobile Vertical List) -->
+      <!-- ROTATION QUEUE (Modern Vertical Stream) -->
       <section class="space-y-2">
         <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-bold text-[#8b929e] uppercase tracking-wider">Rotation Queue</span>
-          <button id="btn-edit-roster-link" class="text-xs text-[#d2f83c] hover:underline font-semibold tap-btn">
+          <span class="text-xs font-semibold text-[#64748b] uppercase tracking-wider font-mono">Rotation Queue</span>
+          <button id="btn-edit-roster-link" class="text-xs text-sky-400 hover:text-sky-300 font-medium tap-btn">
             Edit Roster
           </button>
         </div>
@@ -532,30 +531,30 @@ function render() {
             const isFirst = idx === 0;
             const isSecond = idx === 1;
             return `
-              <div class="flex items-center justify-between p-3 rounded-xl border gap-2 ${
+              <div class="flex items-center justify-between p-3 rounded-xl border gap-2 transition-colors ${
                 isFirst 
-                  ? 'bg-[#141619] border-[#d2f83c]/50 text-white' 
+                  ? 'bg-[#121622] border-[#2a354c] text-white shadow-sm' 
                   : isSecond
-                  ? 'bg-[#121417] border-[#2b303a] text-[#f4f4f6]'
-                  : 'bg-[#0f1114] border-[#1d2026] text-[#8b929e]'
+                  ? 'bg-[#0e1118] border-[#1c2130] text-[#f8fafc]'
+                  : 'bg-[#0c0e14] border-[#181c28] text-[#94a3b8]'
               }">
                 <div class="flex items-center space-x-2.5 min-w-0 flex-1">
-                  <span class="font-mono text-xs font-bold w-6 text-center flex-shrink-0 ${isFirst ? 'text-[#d2f83c]' : 'text-[#8b929e]'}">
+                  <span class="font-mono text-xs font-bold w-6 text-center flex-shrink-0 ${isFirst ? 'text-sky-400' : 'text-[#64748b]'}">
                     #${idx + 1 < 10 ? '0' + (idx + 1) : idx + 1}
                   </span>
                   <div class="min-w-0 flex-1">
                     <span class="font-bold text-sm text-white truncate block">${escapeHtml(member.name)}</span>
-                    <span class="text-xs text-[#8b929e] truncate block">${escapeHtml(member.role || 'Member')}</span>
+                    <span class="text-xs text-[#94a3b8] truncate block">${escapeHtml(member.role || 'Member')}</span>
                   </div>
                 </div>
 
                 <div class="flex items-center space-x-2 flex-shrink-0">
                   ${isFirst ? `
-                    <span class="badge-pill px-2 py-0.5 rounded bg-[#d2f83c]/15 text-[#d2f83c] border border-[#d2f83c]/30">
+                    <span class="badge-pill px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/25">
                       Paying
                     </span>
                   ` : isSecond ? `
-                    <span class="badge-pill px-2 py-0.5 rounded bg-[#1f232b] text-[#8b929e]">
+                    <span class="badge-pill px-2 py-0.5 rounded bg-[#181d28] text-[#94a3b8] border border-[#232938]">
                       Up Next
                     </span>
                   ` : ''}
@@ -569,37 +568,37 @@ function render() {
       <!-- REHEARSAL HISTORY LOG -->
       <section class="space-y-2 pt-2">
         <div class="flex items-center justify-between px-1">
-          <div class="flex items-center space-x-1.5 text-xs font-bold text-[#8b929e] uppercase tracking-wider">
+          <div class="flex items-center space-x-1.5 text-xs font-semibold text-[#64748b] uppercase tracking-wider font-mono">
             <span>Payment History</span>
-            <span class="text-[#5a6270]">(${state.history.length})</span>
+            <span class="text-[#475569]">(${state.history.length})</span>
           </div>
 
           ${state.history.length > 0 ? `
-            <button id="btn-clear-history" class="text-xs text-[#8b929e] hover:text-red-400 tap-btn">
+            <button id="btn-clear-history" class="text-xs text-[#94a3b8] hover:text-red-400 tap-btn">
               Clear
             </button>
           ` : ''}
         </div>
 
         ${state.history.length === 0 ? `
-          <div class="p-5 rounded-2xl bg-[#141619] border border-[#24272d] text-center text-xs text-[#8b929e]">
+          <div class="p-5 rounded-2xl bg-[#11141c] border border-[#1f2433] text-center text-xs text-[#64748b]">
             No payment records yet. Tap the button above when someone pays.
           </div>
         ` : `
           <div class="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
             ${state.history.map(item => `
-              <div class="flex items-center justify-between p-3 rounded-xl bg-[#141619] border border-[#24272d] text-xs gap-2">
+              <div class="flex items-center justify-between p-3 rounded-xl bg-[#11141c] border border-[#1e2332] text-xs gap-2">
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="font-bold text-white">${escapeHtml(item.payerName)}</span>
-                    ${item.payerRole ? `<span class="text-[#8b929e]">(${escapeHtml(item.payerRole)})</span>` : ''}
+                    ${item.payerRole ? `<span class="text-[#94a3b8]">(${escapeHtml(item.payerRole)})</span>` : ''}
                   </div>
                   ${item.note ? `
-                    <p class="text-[#d2f83c]/90 mt-0.5 font-medium truncate">${escapeHtml(item.note)}</p>
+                    <p class="text-sky-400/90 mt-0.5 font-medium truncate">${escapeHtml(item.note)}</p>
                   ` : ''}
                 </div>
 
-                <div class="flex items-center space-x-2 flex-shrink-0 text-[#8b929e]">
+                <div class="flex items-center space-x-2 flex-shrink-0 text-[#64748b] font-mono">
                   <span>${formatDate(item.timestamp)}</span>
                   <button data-delete-id="${item.id}" title="Delete" class="hover:text-red-400 p-1 rounded tap-btn">
                     ${icon('trash2', 'w-3.5 h-3.5')}
@@ -613,8 +612,8 @@ function render() {
 
     </main>
 
-    <!-- Lean Mobile Footer -->
-    <footer class="py-4 border-t border-[#24272d] text-center text-xs text-[#5a6270] flex items-center justify-center gap-3">
+    <!-- Modern Footer -->
+    <footer class="py-4 border-t border-[#1f2433] text-center text-xs text-[#64748b] flex items-center justify-center gap-3">
       <button id="footer-btn-share" class="hover:text-white tap-btn">Share Link</button>
       <span>•</span>
       <button id="footer-btn-stats" class="hover:text-white tap-btn">Stats</button>
@@ -636,41 +635,41 @@ function render() {
  */
 function renderRosterSheet() {
   return `
-    <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col justify-end">
-      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#141619] border-t border-[#24272d] rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
         
         <!-- Sheet Drag Handle -->
-        <div class="w-10 h-1 bg-[#2e333d] rounded-full mx-auto"></div>
+        <div class="w-10 h-1 bg-[#283042] rounded-full mx-auto"></div>
 
-        <div class="flex items-center justify-between pb-2 border-b border-[#24272d]">
-          <h3 class="font-extrabold text-white text-base">Band & Roster Settings</h3>
-          <button id="modal-close" class="p-1 text-[#8b929e] hover:text-white tap-btn">
+        <div class="flex items-center justify-between pb-2 border-b border-[#1f2433]">
+          <h3 class="font-bold text-white text-base">Band & Roster Settings</h3>
+          <button id="modal-close" class="p-1 text-[#94a3b8] hover:text-white tap-btn">
             ${icon('x', 'w-5 h-5')}
           </button>
         </div>
 
         <!-- Band Name Field -->
         <div class="space-y-1">
-          <label class="text-[11px] font-bold text-[#8b929e] uppercase tracking-wider block">Band Name</label>
+          <label class="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider font-mono block">Band Name</label>
           <input
             id="sheet-band-name"
             type="text"
             value="${escapeHtml(state.bandName)}"
-            class="w-full bg-[#0b0c0e] border border-[#24272d] focus:border-[#d2f83c] rounded-xl px-3.5 py-2.5 text-sm text-white outline-none"
+            class="w-full bg-[#0c0e14] border border-[#1e2332] focus:border-sky-400 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none"
           />
         </div>
 
         <!-- Roster Queue Management -->
         <div class="space-y-2">
-          <div class="flex items-center justify-between text-xs text-[#8b929e]">
-            <span class="font-bold uppercase tracking-wider">Queue Order (Top pays first)</span>
+          <div class="flex items-center justify-between text-xs text-[#94a3b8]">
+            <span class="font-semibold uppercase tracking-wider font-mono">Queue Order (Top pays first)</span>
             <span>${state.queue.length} members</span>
           </div>
 
           <div class="space-y-2 max-h-56 overflow-y-auto pr-0.5">
             ${state.queue.map((m, idx) => `
-              <div class="flex items-center space-x-2 bg-[#0b0c0e] p-2 rounded-xl border border-[#20232a]">
-                <span class="font-mono text-xs font-bold text-[#8b929e] w-5 text-center flex-shrink-0">
+              <div class="flex items-center space-x-2 bg-[#0c0e14] p-2 rounded-xl border border-[#1c2130]">
+                <span class="font-mono text-xs font-bold text-[#64748b] w-5 text-center flex-shrink-0">
                   ${idx + 1}
                 </span>
 
@@ -680,7 +679,7 @@ function renderRosterSheet() {
                   data-field="name"
                   value="${escapeHtml(m.name)}"
                   placeholder="Name"
-                  class="flex-1 min-w-0 bg-[#141619] border border-[#24272d] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#d2f83c]"
+                  class="flex-1 min-w-0 bg-[#141824] border border-[#23293a] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-400"
                 />
 
                 <input
@@ -689,17 +688,17 @@ function renderRosterSheet() {
                   data-field="role"
                   value="${escapeHtml(m.role || '')}"
                   placeholder="Instrument"
-                  class="flex-1 min-w-0 bg-[#141619] border border-[#24272d] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#d2f83c]"
+                  class="flex-1 min-w-0 bg-[#141824] border border-[#23293a] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-400"
                 />
 
                 <div class="flex items-center space-x-1 flex-shrink-0">
-                  <button data-up="${idx}" title="Move up" class="p-1.5 text-[#8b929e] hover:text-white tap-btn ${idx === 0 ? 'opacity-20' : ''}" ${idx === 0 ? 'disabled' : ''}>
+                  <button data-up="${idx}" title="Move up" class="p-1.5 text-[#94a3b8] hover:text-white tap-btn ${idx === 0 ? 'opacity-20' : ''}" ${idx === 0 ? 'disabled' : ''}>
                     ${icon('arrowUp', 'w-4 h-4')}
                   </button>
-                  <button data-down="${idx}" title="Move down" class="p-1.5 text-[#8b929e] hover:text-white tap-btn ${idx === state.queue.length - 1 ? 'opacity-20' : ''}" ${idx === state.queue.length - 1 ? 'disabled' : ''}>
+                  <button data-down="${idx}" title="Move down" class="p-1.5 text-[#94a3b8] hover:text-white tap-btn ${idx === state.queue.length - 1 ? 'opacity-20' : ''}" ${idx === state.queue.length - 1 ? 'disabled' : ''}>
                     ${icon('arrowDown', 'w-4 h-4')}
                   </button>
-                  <button data-del="${idx}" title="Remove" class="p-1.5 text-[#8b929e] hover:text-red-400 tap-btn">
+                  <button data-del="${idx}" title="Remove" class="p-1.5 text-[#94a3b8] hover:text-red-400 tap-btn">
                     ${icon('trash2', 'w-4 h-4')}
                   </button>
                 </div>
@@ -709,23 +708,23 @@ function renderRosterSheet() {
         </div>
 
         <!-- Add Member Input -->
-        <form id="form-add-member" class="pt-2 border-t border-[#24272d] flex gap-2">
+        <form id="form-add-member" class="pt-2 border-t border-[#1f2433] flex gap-2">
           <input
             id="new-member-name"
             type="text"
             required
             placeholder="New member name"
-            class="flex-1 min-w-0 bg-[#0b0c0e] border border-[#24272d] focus:border-[#d2f83c] rounded-xl px-3 py-2 text-xs text-white outline-none"
+            class="flex-1 min-w-0 bg-[#0c0e14] border border-[#1e2332] focus:border-sky-400 rounded-xl px-3 py-2 text-xs text-white outline-none"
           />
           <input
             id="new-member-role"
             type="text"
             placeholder="Instrument"
-            class="flex-1 min-w-0 bg-[#0b0c0e] border border-[#24272d] focus:border-[#d2f83c] rounded-xl px-3 py-2 text-xs text-white outline-none"
+            class="flex-1 min-w-0 bg-[#0c0e14] border border-[#1e2332] focus:border-sky-400 rounded-xl px-3 py-2 text-xs text-white outline-none"
           />
           <button
             type="submit"
-            class="px-3.5 py-2 bg-[#1f232b] hover:bg-[#2a303a] text-white rounded-xl text-xs font-bold tap-btn flex-shrink-0 flex items-center gap-1"
+            class="px-3.5 py-2 bg-[#1b2130] hover:bg-[#252c3d] text-white rounded-xl text-xs font-bold tap-btn flex-shrink-0 flex items-center gap-1 border border-[#2b354c]"
           >
             ${icon('plus', 'w-3.5 h-3.5')}
             <span>Add</span>
@@ -733,11 +732,11 @@ function renderRosterSheet() {
         </form>
 
         <!-- Sheet Footer -->
-        <div class="flex items-center justify-between pt-3 border-t border-[#24272d]">
-          <button id="btn-reset-defaults" class="text-xs text-[#8b929e] hover:text-red-400 tap-btn">
+        <div class="flex items-center justify-between pt-3 border-t border-[#1f2433]">
+          <button id="btn-reset-defaults" class="text-xs text-[#94a3b8] hover:text-red-400 tap-btn">
             Reset Defaults
           </button>
-          <button id="sheet-btn-done" class="px-5 py-2.5 bg-[#d2f83c] text-black font-extrabold text-xs rounded-xl tap-btn">
+          <button id="sheet-btn-done" class="px-5 py-2.5 bg-white text-slate-950 font-bold text-xs rounded-xl tap-btn">
             Done
           </button>
         </div>
@@ -755,25 +754,25 @@ function renderShareSheet() {
   const currentPayer = state.queue[0]?.name || 'N/A';
 
   return `
-    <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col justify-end">
-      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#141619] border-t border-[#24272d] rounded-t-3xl p-5 space-y-4">
+    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4">
         
-        <div class="w-10 h-1 bg-[#2e333d] rounded-full mx-auto"></div>
+        <div class="w-10 h-1 bg-[#283042] rounded-full mx-auto"></div>
 
-        <div class="flex items-center justify-between pb-2 border-b border-[#24272d]">
-          <h3 class="font-extrabold text-white text-base">Share with Band</h3>
-          <button id="modal-close" class="p-1 text-[#8b929e] hover:text-white tap-btn">
+        <div class="flex items-center justify-between pb-2 border-b border-[#1f2433]">
+          <h3 class="font-bold text-white text-base">Share with Band</h3>
+          <button id="modal-close" class="p-1 text-[#94a3b8] hover:text-white tap-btn">
             ${icon('x', 'w-5 h-5')}
           </button>
         </div>
 
-        <div class="p-3.5 rounded-xl bg-[#0b0c0e] border border-[#20232a] text-xs space-y-1">
+        <div class="p-3.5 rounded-xl bg-[#0c0e14] border border-[#1c2130] text-xs space-y-1">
           <div class="flex justify-between">
-            <span class="text-[#8b929e]">Current payer:</span>
-            <span class="font-bold text-[#d2f83c]">${escapeHtml(currentPayer)}</span>
+            <span class="text-[#94a3b8]">Current payer:</span>
+            <span class="font-bold text-sky-400">${escapeHtml(currentPayer)}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-[#8b929e]">Queue members:</span>
+            <span class="text-[#94a3b8]">Queue members:</span>
             <span class="text-white">${state.queue.length}</span>
           </div>
         </div>
@@ -781,26 +780,26 @@ function renderShareSheet() {
         <!-- 1-Tap Native Share (WhatsApp, iMessage, etc.) -->
         <button
           id="btn-native-share"
-          class="w-full h-13 bg-[#d2f83c] hover:bg-[#bfe628] text-black font-extrabold text-sm py-3 px-4 rounded-xl flex items-center justify-center gap-2 tap-btn"
+          class="w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2 tap-btn shadow-sm"
         >
-          ${icon('share2', 'w-4 h-4')}
+          ${icon('share2', 'w-4 h-4 text-slate-950')}
           <span>Share to WhatsApp / Band Chat</span>
         </button>
 
         <!-- Direct Copy Link -->
         <div class="space-y-1 pt-1">
-          <label class="text-[11px] font-bold text-[#8b929e] uppercase tracking-wider block">Or copy link manually</label>
+          <label class="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider font-mono block">Or copy link manually</label>
           <div class="flex items-center space-x-2">
             <input
               id="sheet-sync-input"
               type="text"
               readonly
               value="${escapeHtml(syncUrl)}"
-              class="flex-1 min-w-0 bg-[#0b0c0e] border border-[#24272d] rounded-xl px-3 py-2 text-xs text-[#8b929e] outline-none select-all"
+              class="flex-1 min-w-0 bg-[#0c0e14] border border-[#1e2332] rounded-xl px-3 py-2 text-xs text-[#94a3b8] outline-none select-all"
             />
             <button
               id="btn-copy-sync-link"
-              class="px-3 py-2 bg-[#1f232b] hover:bg-[#2a303a] text-white rounded-xl text-xs font-bold flex items-center gap-1 tap-btn flex-shrink-0"
+              class="px-3.5 py-2 bg-[#181d28] hover:bg-[#232938] text-white rounded-xl text-xs font-bold flex items-center gap-1 tap-btn flex-shrink-0 border border-[#2b354c]"
             >
               ${icon('copy', 'w-3.5 h-3.5')}
               <span>Copy</span>
@@ -808,7 +807,7 @@ function renderShareSheet() {
           </div>
         </div>
 
-        <p class="text-[11px] text-[#5a6270] leading-relaxed">
+        <p class="text-[11px] text-[#64748b] leading-relaxed">
           When band members tap this link on their phones, their tracker prompts to sync in 1 tap without any login.
         </p>
 
@@ -825,36 +824,36 @@ function renderStatsSheet() {
   const total = state.history.length;
 
   return `
-    <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col justify-end">
-      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#141619] border-t border-[#24272d] rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
+    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         
-        <div class="w-10 h-1 bg-[#2e333d] rounded-full mx-auto"></div>
+        <div class="w-10 h-1 bg-[#283042] rounded-full mx-auto"></div>
 
-        <div class="flex items-center justify-between pb-2 border-b border-[#24272d]">
-          <h3 class="font-extrabold text-white text-base">Payment Fair-Share Stats</h3>
-          <button id="modal-close" class="p-1 text-[#8b929e] hover:text-white tap-btn">
+        <div class="flex items-center justify-between pb-2 border-b border-[#1f2433]">
+          <h3 class="font-bold text-white text-base">Payment Fair-Share Stats</h3>
+          <button id="modal-close" class="p-1 text-[#94a3b8] hover:text-white tap-btn">
             ${icon('x', 'w-5 h-5')}
           </button>
         </div>
 
-        <div class="p-3.5 rounded-xl bg-[#0b0c0e] border border-[#20232a] flex justify-between items-center text-xs">
-          <span class="text-[#8b929e] font-semibold">Total Sessions Logged</span>
-          <span class="text-xl font-black text-white">${total}</span>
+        <div class="p-3.5 rounded-xl bg-[#0c0e14] border border-[#1c2130] flex justify-between items-center text-xs">
+          <span class="text-[#94a3b8] font-medium">Total Sessions Logged</span>
+          <span class="text-xl font-bold text-white font-mono">${total}</span>
         </div>
 
         <div class="space-y-2">
-          <span class="text-[11px] font-bold text-[#8b929e] uppercase tracking-wider block">Payments Per Member</span>
+          <span class="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider font-mono block">Payments Per Member</span>
           <div class="space-y-2 max-h-56 overflow-y-auto">
             ${Object.entries(stats).map(([name, count]) => {
               const pct = total > 0 ? Math.round((count / total) * 100) : 0;
               return `
-                <div class="p-2.5 rounded-xl bg-[#0b0c0e] border border-[#20232a] space-y-1.5 text-xs">
+                <div class="p-2.5 rounded-xl bg-[#0c0e14] border border-[#1c2130] space-y-1.5 text-xs">
                   <div class="flex justify-between items-center">
                     <span class="font-bold text-white">${escapeHtml(name)}</span>
-                    <span class="font-mono text-[#d2f83c] font-bold">${count} paid (${pct}%)</span>
+                    <span class="font-mono text-sky-400 font-bold">${count} paid (${pct}%)</span>
                   </div>
-                  <div class="w-full bg-[#191c20] rounded-full h-1 overflow-hidden">
-                    <div class="bg-[#d2f83c] h-1 rounded-full" style="width: ${pct}%"></div>
+                  <div class="w-full bg-[#181d28] rounded-full h-1 overflow-hidden">
+                    <div class="bg-sky-400 h-1 rounded-full" style="width: ${pct}%"></div>
                   </div>
                 </div>
               `;
@@ -862,7 +861,7 @@ function renderStatsSheet() {
           </div>
         </div>
 
-        <button id="sheet-btn-done" class="w-full py-2.5 bg-[#1f232b] hover:bg-[#2a303a] text-white font-bold text-xs rounded-xl tap-btn">
+        <button id="sheet-btn-done" class="w-full py-2.5 bg-[#181d28] hover:bg-[#232938] text-white font-bold text-xs rounded-xl tap-btn border border-[#2b354c]">
           Close
         </button>
 

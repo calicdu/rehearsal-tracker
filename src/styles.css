@@ -1,15 +1,15 @@
-/* Band Rehearsal Tracker - Lean Mobile-First Styles */
+/* Band Rehearsal Tracker - Modern Obsidian & Slate Styles */
 :root {
-  --bg-app: #0b0c0e;
-  --bg-card: #141619;
-  --bg-card-subtle: #191c20;
-  --border-color: #24272d;
-  --border-active: #383d47;
-  --text-main: #f4f4f6;
-  --text-muted: #8b929e;
-  --accent-color: #d2f83c; /* Lean studio electric lime */
-  --accent-text: #090a02;
-  --danger-color: #ef4444;
+  --bg-app: #090a0f;
+  --bg-card: #11141c;
+  --bg-card-subtle: #171b26;
+  --border-color: #1f2433;
+  --border-active: #2d354a;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-cyan: #38bdf8;
+  --font-main: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
 }
 
 * {
@@ -20,7 +20,7 @@
 html, body {
   background-color: var(--bg-app);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-main);
   min-height: 100%;
   width: 100%;
   max-width: 100%;
@@ -28,6 +28,7 @@ html, body {
   padding: 0;
   overflow-x: hidden;
   overscroll-behavior-y: none;
+  letter-spacing: -0.011em;
 }
 
 #root {
@@ -36,6 +37,11 @@ html, body {
   margin-left: auto;
   margin-right: auto;
   min-height: 100vh;
+}
+
+/* Headings modern letter tracking */
+h1, h2, h3, h4 {
+  letter-spacing: -0.025em;
 }
 
 /* iOS Safe Area Padding Helpers */
@@ -53,7 +59,7 @@ input, select, textarea, button {
   font-size: 16px;
 }
 
-/* Lean tactile feedback for touch */
+/* Subtle tactile feedback on touch */
 .tap-btn {
   transition: transform 0.08s ease, opacity 0.1s ease, background-color 0.12s ease;
   user-select: none;
@@ -61,7 +67,7 @@ input, select, textarea, button {
 
 .tap-btn:active {
   transform: scale(0.97);
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 /* Bottom Sheet Modal for Mobile */
@@ -96,7 +102,7 @@ input, select, textarea, button {
   animation: toastIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Subtle clean scrollbars */
+/* Clean minimal scrollbars */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -107,15 +113,15 @@ input, select, textarea, button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2e36;
+  background: #252c3d;
   border-radius: 4px;
 }
 
-/* High-contrast hardware card aesthetic (No neon glows!) */
+/* Modern Card Styles */
 .lean-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 18px;
+  border-radius: 20px;
 }
 
 .lean-card-subtle {
@@ -126,9 +132,9 @@ input, select, textarea, button {
 
 /* Hardware style badge */
 .badge-pill {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.04em;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
 }

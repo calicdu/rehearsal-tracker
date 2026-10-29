@@ -6,7 +6,7 @@
     <title>Band Rehearsal Tracker</title>
     
     <!-- Mobile & PWA Configuration -->
-    <meta name="theme-color" content="#0b0c0e">
+    <meta name="theme-color" content="#090a0f">
     <meta name="description" content="Rotational payment queue for band rehearsals.">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,6 +18,11 @@
     <link rel="apple-touch-icon" href="./assets/icons/icon.svg">
     <link rel="manifest" href="./manifest.json">
 
+    <!-- Modern Typography: Geist & Geist Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
     <!-- Tailwind CSS (CDN for utility classes) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,17 +30,21 @@
             darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+                    },
                     colors: {
                         dark: {
-                            base: '#0b0c0e',
-                            surface: '#141619',
-                            muted: '#191c20',
-                            border: '#24272d',
+                            base: '#090a0f',
+                            surface: '#11141c',
+                            subtle: '#171b26',
+                            border: '#1f2433',
+                            borderActive: '#2d354a'
                         },
-                        accent: {
-                            DEFAULT: '#d2f83c',
-                            hover: '#bfe628',
-                            dark: '#090a02',
+                        cyan: {
+                            400: '#38bdf8',
+                            500: '#0ea5e9'
                         }
                     }
                 }
@@ -43,12 +52,12 @@
         };
     </script>
 
-    <!-- Custom Lean Stylesheet -->
+    <!-- Custom Modern Stylesheet -->
     <link rel="stylesheet" href="./src/styles.css">
 </head>
-<body class="min-h-screen bg-[#0b0c0e] text-[#f4f4f6] flex flex-col justify-between antialiased selection:bg-[#d2f83c] selection:text-black safe-top safe-bottom">
+<body class="min-h-screen bg-[#090a0f] text-[#f8fafc] flex flex-col justify-between antialiased selection:bg-white selection:text-black safe-top safe-bottom">
 
-    <!-- Application Root Container (Mobile-First: Max 480px width on desktop, 100% on phones) -->
+    <!-- Application Root Container -->
     <div id="root" class="w-full max-w-lg mx-auto min-h-screen flex flex-col justify-between px-3.5 sm:px-4"></div>
 
     <!-- Floating Toast Container -->
