@@ -120,7 +120,7 @@ function showToast(message, actionText = null, onAction = null, duration = 4000)
     <div class="bg-[#151924] border border-[#273044] text-[#f8fafc] px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 text-sm toast-anim">
       <span class="font-medium truncate">${message}</span>
       ${actionText ? `
-        <button id="toast-action-btn" class="flex-shrink-0 text-xs font-bold bg-white hover:bg-slate-100 text-slate-950 px-3 py-1.5 rounded-xl tap-btn">
+        <button id="toast-action-btn" class="flex-shrink-0 text-xs font-bold bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] px-3 py-1.5 rounded-xl tap-btn">
           ${actionText}
         </button>
       ` : ''}
@@ -445,7 +445,7 @@ function render() {
           </div>
           <div class="flex items-center space-x-1.5 flex-shrink-0">
             <button id="btn-sync-dismiss" class="px-2.5 py-1 text-xs text-[#94a3b8] hover:text-white tap-btn">Dismiss</button>
-            <button id="btn-sync-apply" class="px-3 py-1 text-xs font-bold bg-white text-slate-950 rounded-lg tap-btn">Apply</button>
+            <button id="btn-sync-apply" class="px-3 py-1 text-xs font-bold bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] rounded-lg tap-btn">Apply</button>
           </div>
         </div>
       ` : ''}
@@ -504,15 +504,15 @@ function render() {
           />
         </div>
 
-        <!-- PRIMARY ACTION: High-contrast Pure White Button -->
+        <!-- PRIMARY ACTION: Tamed Matte Silver-Gray Button (Glare-free) -->
         <button
           id="btn-mark-paid"
-          class="w-full min-h-[52px] py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold text-sm sm:text-base rounded-xl flex items-center justify-center gap-2 tap-btn shadow-sm leading-tight text-center"
+          class="w-full min-h-[52px] py-3.5 px-4 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-sm sm:text-base rounded-xl flex items-center justify-center gap-2 tap-btn shadow-sm leading-tight text-center border border-[#e2e8f0]/30"
         >
           <span>${escapeHtml(currentPayer.name)} Paid</span>
-          <span class="text-slate-400">•</span>
+          <span class="text-[#64748b]">•</span>
           <span>Rotate to ${escapeHtml(nextPayer.name)}</span>
-          ${icon('arrowRight', 'w-4 h-4 text-slate-950')}
+          ${icon('arrowRight', 'w-4 h-4 text-[#0b0e14]')}
         </button>
 
       </section>
@@ -736,7 +736,7 @@ function renderRosterSheet() {
           <button id="btn-reset-defaults" class="text-xs text-[#94a3b8] hover:text-red-400 tap-btn">
             Reset Defaults
           </button>
-          <button id="sheet-btn-done" class="px-5 py-2.5 bg-white text-slate-950 font-bold text-xs rounded-xl tap-btn">
+          <button id="sheet-btn-done" class="px-5 py-2.5 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-xs rounded-xl tap-btn">
             Done
           </button>
         </div>
@@ -780,9 +780,9 @@ function renderShareSheet() {
         <!-- 1-Tap Native Share (WhatsApp, iMessage, etc.) -->
         <button
           id="btn-native-share"
-          class="w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold text-sm rounded-xl flex items-center justify-center gap-2 tap-btn shadow-sm"
+          class="w-full py-3.5 px-4 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-sm rounded-xl flex items-center justify-center gap-2 tap-btn shadow-sm"
         >
-          ${icon('share2', 'w-4 h-4 text-slate-950')}
+          ${icon('share2', 'w-4 h-4 text-[#0b0e14]')}
           <span>Share to WhatsApp / Band Chat</span>
         </button>
 
