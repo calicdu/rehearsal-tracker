@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Band Rehearsal Pay Tracker</title>
+    
+    <!-- PWA & Mobile Meta -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="description" content="Never argue about who pays for band rehearsal again. A sleek rotational payment queue for bands.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pay Tracker">
+    
+    <!-- Favicon & Manifest -->
+    <link rel="icon" type="image/svg+xml" href="./assets/icons/icon.svg">
+    <link rel="apple-touch-icon" href="./assets/icons/icon.svg">
+    <link rel="manifest" href="./manifest.json">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS (CDN for rapid styling) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            950: '#0f172a'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- Custom App Styles -->
+    <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body class="min-h-screen bg-[#090d16] text-slate-100 flex flex-col justify-between antialiased selection:bg-indigo-600 selection:text-white">
+
+    <!-- Application Root -->
+    <div id="root" class="min-h-screen flex flex-col justify-between"></div>
+
+    <!-- Floating Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto max-w-md w-full px-4"></div>
+
+    <!-- Core App Scripts (zero build step, instant load) -->
+    <script src="./src/icons.js"></script>
+    <script src="./src/app.js"></script>
+</body>
+</html>
