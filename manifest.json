@@ -1,5 +1,5 @@
 {
-  "name": "Band Rehearsal Tracker",
+  "name": "Rehearsal Payment Tracker",
   "short_name": "Rehearsals",
   "description": "Rotational payment queue for band rehearsals.",
   "start_url": "./index.html",
