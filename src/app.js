@@ -1,6 +1,7 @@
 /**
  * Band Rehearsal Tracker - Modern Obsidian & Slate Edition
- * Clean typography (Geist), refined dark palette, zero dependencies.
+ * Featuring Automatic Real-Time Cloud Sync (Firebase Realtime Database)
+ * Zero SDK dependencies - uses native fetch + EventSource streaming.
  */
 
 // Default starter roster
@@ -20,8 +21,10 @@ const state = {
   history: [],
   soundEnabled: true,
   undoStack: [],
-  activeModal: null, // 'roster' | 'share' | 'stats' | null
-  pendingSyncData: null
+  activeModal: null, // 'roster' | 'share' | 'stats' | 'cloud' | null
+  firebaseUrl: '',
+  cloudStatus: 'unconfigured', // 'connected' | 'connecting' | 'unconfigured' | 'offline'
+  isSyncing: false
 };
 
 // Web Audio API Context (reusable singleton)
@@ -69,6 +72,16 @@ function playTactileFeedback() {
 }
 
 /**
+ * Get active Firebase database URL
+ */
+function getActiveFirebaseUrl() {
+  const fromState = (state.firebaseUrl || '').trim();
+  const fromConfig = (typeof CLOUD_CONFIG !== 'undefined' && CLOUD_CONFIG.firebaseDbUrl ? CLOUD_CONFIG.firebaseDbUrl : '').trim();
+  const raw = fromState || fromConfig;
+  return raw.replace(/\/+$/, '');
+}
+
+/**
  * Storage Helpers
  */
 function loadState() {
@@ -90,19 +103,175 @@ function loadState() {
 
     const savedSound = localStorage.getItem('band_pay_sound');
     if (savedSound !== null) state.soundEnabled = savedSound === 'true';
+
+    const savedFbUrl = localStorage.getItem('band_firebase_url');
+    if (savedFbUrl) state.firebaseUrl = savedFbUrl;
   } catch (e) {
-    console.error('Failed to load state:', e);
+    console.error('Failed to load local state:', e);
   }
 }
 
-function saveState() {
+function saveState(skipCloud = false) {
   try {
     localStorage.setItem('band_pay_queue', JSON.stringify(state.queue));
     localStorage.setItem('band_pay_history', JSON.stringify(state.history));
     localStorage.setItem('band_pay_name', state.bandName);
     localStorage.setItem('band_pay_sound', String(state.soundEnabled));
+    if (state.firebaseUrl) localStorage.setItem('band_firebase_url', state.firebaseUrl);
+
+    if (!skipCloud) {
+      syncToCloud();
+    }
   } catch (e) {
     console.error('Failed to save state:', e);
+  }
+}
+
+/**
+ * Cloud Sync: Push update to Firebase Realtime Database
+ */
+async function syncToCloud() {
+  const url = getActiveFirebaseUrl();
+  if (!url) return;
+
+  state.isSyncing = true;
+  try {
+    const payload = {
+      bandName: state.bandName,
+      queue: state.queue,
+      history: state.history.slice(0, 50),
+      updatedAt: Date.now()
+    };
+
+    const res = await fetch(`${url}/rehearsal.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      state.cloudStatus = 'connected';
+    } else {
+      console.warn('Firebase sync HTTP error:', res.status);
+      state.cloudStatus = 'offline';
+    }
+  } catch (err) {
+    console.warn('Firebase network error:', err);
+    state.cloudStatus = 'offline';
+  } finally {
+    state.isSyncing = false;
+    render();
+  }
+}
+
+/**
+ * Cloud Sync: Fetch state from Firebase Realtime Database
+ */
+async function fetchFromCloud() {
+  const url = getActiveFirebaseUrl();
+  if (!url) {
+    state.cloudStatus = 'unconfigured';
+    return false;
+  }
+
+  state.cloudStatus = 'connecting';
+  render();
+
+  try {
+    const res = await fetch(`${url}/rehearsal.json`);
+    if (!res.ok) {
+      state.cloudStatus = 'offline';
+      render();
+      return false;
+    }
+
+    const data = await res.json();
+    if (data && Array.isArray(data.queue) && data.queue.length > 0) {
+      state.queue = data.queue;
+      if (data.bandName) state.bandName = data.bandName;
+      if (Array.isArray(data.history)) state.history = data.history;
+      saveState(true); // save to localStorage without re-pushing
+      state.cloudStatus = 'connected';
+      render();
+      return true;
+    } else {
+      // Database exists but is empty -> push our current state to populate it
+      await syncToCloud();
+      state.cloudStatus = 'connected';
+      render();
+      return true;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch from Firebase:', err);
+    state.cloudStatus = 'offline';
+    render();
+    return false;
+  }
+}
+
+/**
+ * Real-time SSE Live Stream (Server-Sent Events)
+ * Automatically updates this device whenever ANY other bandmate marks paid!
+ */
+let cloudEventSource = null;
+function initRealtimeLiveSync() {
+  const url = getActiveFirebaseUrl();
+  if (!url) return;
+
+  if (cloudEventSource) {
+    cloudEventSource.close();
+    cloudEventSource = null;
+  }
+
+  try {
+    // Native browser EventSource connecting to Firebase RTDB stream
+    cloudEventSource = new EventSource(`${url}/rehearsal.json`);
+
+    cloudEventSource.addEventListener('put', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (!payload) return;
+
+        if (payload.path === '/' && payload.data && Array.isArray(payload.data.queue)) {
+          // Check if incoming state is different from local state
+          const currentFirstId = state.queue[0]?.id;
+          const incomingFirstId = payload.data.queue[0]?.id;
+          const historyChanged = (payload.data.history?.length || 0) !== state.history.length;
+
+          state.queue = payload.data.queue;
+          if (payload.data.bandName) state.bandName = payload.data.bandName;
+          if (Array.isArray(payload.data.history)) state.history = payload.data.history;
+
+          saveState(true);
+          state.cloudStatus = 'connected';
+
+          if (currentFirstId !== incomingFirstId || historyChanged) {
+            playTactileFeedback();
+            const nextPayer = state.queue[0]?.name || 'Next member';
+            showToast(`Live update from bandmate! Next up: ${nextPayer}`);
+          }
+          render();
+        } else if (payload.path && payload.path !== '/') {
+          // Sub-path change, trigger full fetch
+          fetchFromCloud();
+        }
+      } catch (parseErr) {
+        console.warn('SSE parsing error:', parseErr);
+      }
+    });
+
+    cloudEventSource.onopen = () => {
+      state.cloudStatus = 'connected';
+      render();
+    };
+
+    cloudEventSource.onerror = () => {
+      // EventSource auto-reconnects natively
+      state.cloudStatus = 'offline';
+      render();
+    };
+  } catch (err) {
+    console.warn('EventSource initialization error:', err);
   }
 }
 
@@ -263,106 +432,6 @@ function clearHistory() {
 }
 
 /**
- * Band Sync Payload & Link
- */
-function createSyncPayload() {
-  const payload = {
-    bandName: state.bandName,
-    queue: state.queue,
-    history: state.history.slice(0, 25),
-    v: 1,
-    ts: Date.now()
-  };
-  return encodeURIComponent(btoa(encodeURIComponent(JSON.stringify(payload))));
-}
-
-function getSyncUrl() {
-  const cleanUrl = window.location.origin + window.location.pathname;
-  return `${cleanUrl}#sync=${createSyncPayload()}`;
-}
-
-function checkIncomingSync() {
-  const hash = window.location.hash;
-  if (!hash || !hash.includes('#sync=')) return;
-
-  try {
-    const rawPayload = hash.split('#sync=')[1];
-    if (!rawPayload) return;
-    const jsonStr = decodeURIComponent(atob(decodeURIComponent(rawPayload)));
-    const data = JSON.parse(jsonStr);
-
-    if (data && Array.isArray(data.queue) && data.queue.length > 0) {
-      state.pendingSyncData = data;
-    }
-  } catch (e) {
-    console.error('Failed to parse sync payload:', e);
-  }
-}
-
-function applyIncomingSync() {
-  if (!state.pendingSyncData) return;
-
-  state.undoStack.push({
-    queue: JSON.parse(JSON.stringify(state.queue)),
-    history: JSON.parse(JSON.stringify(state.history))
-  });
-
-  state.queue = state.pendingSyncData.queue;
-  if (state.pendingSyncData.bandName) state.bandName = state.pendingSyncData.bandName;
-  if (Array.isArray(state.pendingSyncData.history)) state.history = state.pendingSyncData.history;
-
-  state.pendingSyncData = null;
-  saveState();
-
-  if (window.history && window.history.replaceState) {
-    window.history.replaceState(null, '', window.location.pathname);
-  }
-
-  showToast('Synced queue with band link!', 'Undo', undoLastAction);
-  render();
-}
-
-function dismissIncomingSync() {
-  state.pendingSyncData = null;
-  if (window.history && window.history.replaceState) {
-    window.history.replaceState(null, '', window.location.pathname);
-  }
-  render();
-}
-
-/**
- * Mobile Native Share
- */
-async function shareBandUpdate() {
-  const currentPayer = state.queue[0]?.name || 'Someone';
-  const nextPayer = state.queue[1]?.name || 'Someone';
-  const url = getSyncUrl();
-  const title = `${state.bandName} Rehearsal Tracker`;
-  const text = `${state.bandName} update: ${currentPayer} is paying next rehearsal (followed by ${nextPayer}). Sync here:`;
-
-  if (navigator.share) {
-    try {
-      await navigator.share({ title, text, url });
-      return;
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.warn('Share error, fallback to copy:', err);
-      } else {
-        return;
-      }
-    }
-  }
-
-  // Fallback to clipboard
-  try {
-    await navigator.clipboard.writeText(url);
-    showToast('Sync link copied! Paste in group chat.');
-  } catch (e) {
-    prompt('Copy sync link:', url);
-  }
-}
-
-/**
  * Member Statistics
  */
 function getMemberStats() {
@@ -384,6 +453,7 @@ function render() {
   const currentPayer = state.queue[0] || { name: 'No Members', role: 'Tap Roster to add' };
   const nextPayer = state.queue[1] || (state.queue[0] ? { name: state.queue[0].name, role: 'Only 1 member' } : { name: '-', role: '' });
   const hasUndo = state.undoStack.length > 0;
+  const isCloudConnected = state.cloudStatus === 'connected';
 
   app.innerHTML = `
     <!-- Top Modern Header -->
@@ -393,7 +463,24 @@ function render() {
           ${icon('music', 'w-4 h-4')}
         </div>
         <div class="min-w-0 flex-1">
-          <h1 class="text-base font-bold text-white truncate leading-tight">${escapeHtml(state.bandName)}</h1>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-bold text-white truncate leading-tight">${escapeHtml(state.bandName)}</h1>
+            <!-- Cloud Status Badge -->
+            <button 
+              id="header-btn-cloud-status"
+              title="${isCloudConnected ? 'Connected to Firebase (Realtime Live Sync)' : 'Firebase cloud sync not connected. Tap to setup.'}"
+              class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-medium tap-btn ${
+                isCloudConnected 
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' 
+                  : state.cloudStatus === 'connecting'
+                  ? 'bg-sky-500/10 text-sky-400 border border-sky-500/25'
+                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/25'
+              }"
+            >
+              <span class="w-1.5 h-1.5 rounded-full ${isCloudConnected ? 'bg-emerald-400 animate-pulse' : state.cloudStatus === 'connecting' ? 'bg-sky-400 animate-ping' : 'bg-amber-400'}"></span>
+              <span>${isCloudConnected ? 'Live' : state.cloudStatus === 'connecting' ? 'Syncing' : 'Cloud Setup'}</span>
+            </button>
+          </div>
           <p class="text-[11px] text-[#94a3b8] truncate font-mono">${state.queue.length} in rotation</p>
         </div>
       </div>
@@ -416,16 +503,8 @@ function render() {
         </button>
 
         <button 
-          id="btn-open-share"
-          title="Share Link"
-          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
-        >
-          ${icon('share2', 'w-4 h-4')}
-        </button>
-
-        <button 
           id="btn-open-roster"
-          title="Roster Settings"
+          title="Roster & Cloud Settings"
           class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
         >
           ${icon('settings', 'w-4 h-4')}
@@ -436,17 +515,16 @@ function render() {
     <!-- Main Content -->
     <main class="py-4 space-y-4 flex-grow">
 
-      <!-- Incoming Band Update Banner -->
-      ${state.pendingSyncData ? `
-        <div class="lean-card p-3.5 bg-[#121622] border-sky-500/40 flex items-center justify-between gap-3 shadow-sm">
+      <!-- Unconfigured Cloud Banner (Encouraging 1-time setup) -->
+      ${state.cloudStatus === 'unconfigured' ? `
+        <div class="lean-card p-3.5 bg-[#121622] border-amber-500/30 flex items-center justify-between gap-3 shadow-sm">
           <div class="min-w-0 text-xs flex-1">
-            <span class="font-bold text-sky-400 block">New Band Sync Available</span>
-            <span class="text-[#94a3b8] truncate block">Next to pay: <strong>${escapeHtml(state.pendingSyncData.queue[0]?.name || 'N/A')}</strong></span>
+            <span class="font-bold text-amber-400 block">Auto-Sync Across All Phones</span>
+            <span class="text-[#94a3b8] truncate block">Connect a free Firebase database URL so every band member's phone updates automatically.</span>
           </div>
-          <div class="flex items-center space-x-1.5 flex-shrink-0">
-            <button id="btn-sync-dismiss" class="px-2.5 py-1 text-xs text-[#94a3b8] hover:text-white tap-btn">Dismiss</button>
-            <button id="btn-sync-apply" class="px-3 py-1 text-xs font-bold bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] rounded-lg tap-btn">Apply</button>
-          </div>
+          <button id="btn-banner-cloud-setup" class="px-3 py-1.5 text-xs font-bold bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] rounded-lg tap-btn flex-shrink-0">
+            Setup
+          </button>
         </div>
       ` : ''}
 
@@ -614,7 +692,7 @@ function render() {
 
     <!-- Modern Footer -->
     <footer class="py-4 border-t border-[#1f2433] text-center text-xs text-[#64748b] flex items-center justify-center gap-3">
-      <button id="footer-btn-share" class="hover:text-white tap-btn">Share Link</button>
+      <button id="footer-btn-cloud" class="hover:text-white tap-btn">Cloud Sync</button>
       <span>•</span>
       <button id="footer-btn-stats" class="hover:text-white tap-btn">Stats</button>
       <span>•</span>
@@ -623,7 +701,7 @@ function render() {
 
     <!-- MOBILE BOTTOM SHEETS -->
     ${state.activeModal === 'roster' ? renderRosterSheet() : ''}
-    ${state.activeModal === 'share' ? renderShareSheet() : ''}
+    ${state.activeModal === 'cloud' ? renderCloudSheet() : ''}
     ${state.activeModal === 'stats' ? renderStatsSheet() : ''}
   `;
 
@@ -747,69 +825,77 @@ function renderRosterSheet() {
 }
 
 /**
- * Mobile Bottom Sheet: Share to Band Chat
+ * Mobile Bottom Sheet: Firebase Cloud Sync Setup
  */
-function renderShareSheet() {
-  const syncUrl = getSyncUrl();
-  const currentPayer = state.queue[0]?.name || 'N/A';
+function renderCloudSheet() {
+  const activeUrl = getActiveFirebaseUrl();
+  const isConnected = state.cloudStatus === 'connected';
 
   return `
     <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
-      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4">
+      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         
         <div class="w-10 h-1 bg-[#283042] rounded-full mx-auto"></div>
 
         <div class="flex items-center justify-between pb-2 border-b border-[#1f2433]">
-          <h3 class="font-bold text-white text-base">Share with Band</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-white text-base">Firebase Realtime Sync</h3>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono ${
+              isConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' : 'bg-amber-500/10 text-amber-400 border border-amber-500/25'
+            }">
+              <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
+              <span>${isConnected ? 'Connected' : 'Not Connected'}</span>
+            </span>
+          </div>
           <button id="modal-close" class="p-1 text-[#94a3b8] hover:text-white tap-btn">
             ${icon('x', 'w-5 h-5')}
           </button>
         </div>
 
-        <div class="p-3.5 rounded-xl bg-[#0c0e14] border border-[#1c2130] text-xs space-y-1">
-          <div class="flex justify-between">
-            <span class="text-[#94a3b8]">Current payer:</span>
-            <span class="font-bold text-sky-400">${escapeHtml(currentPayer)}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-[#94a3b8]">Queue members:</span>
-            <span class="text-white">${state.queue.length}</span>
-          </div>
-        </div>
-
-        <!-- 1-Tap Native Share (WhatsApp, iMessage, etc.) -->
-        <button
-          id="btn-native-share"
-          class="w-full py-3.5 px-4 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-sm rounded-xl flex items-center justify-center gap-2 tap-btn shadow-sm"
-        >
-          ${icon('share2', 'w-4 h-4 text-[#0b0e14]')}
-          <span>Share to WhatsApp / Band Chat</span>
-        </button>
-
-        <!-- Direct Copy Link -->
-        <div class="space-y-1 pt-1">
-          <label class="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider font-mono block">Or copy link manually</label>
-          <div class="flex items-center space-x-2">
-            <input
-              id="sheet-sync-input"
-              type="text"
-              readonly
-              value="${escapeHtml(syncUrl)}"
-              class="flex-1 min-w-0 bg-[#0c0e14] border border-[#1e2332] rounded-xl px-3 py-2 text-xs text-[#94a3b8] outline-none select-all"
-            />
-            <button
-              id="btn-copy-sync-link"
-              class="px-3.5 py-2 bg-[#181d28] hover:bg-[#232938] text-white rounded-xl text-xs font-bold flex items-center gap-1 tap-btn flex-shrink-0 border border-[#2b354c]"
-            >
-              ${icon('copy', 'w-3.5 h-3.5')}
-              <span>Copy</span>
-            </button>
-          </div>
-        </div>
-
-        <p class="text-[11px] text-[#64748b] leading-relaxed">
-          When band members tap this link on their phones, their tracker prompts to sync in 1 tap without any login.
+        <p class="text-xs text-[#94a3b8] leading-relaxed">
+          Connect your free <strong>Google Firebase Realtime Database</strong> so whenever anyone marks paid, every band member's phone updates automatically in real-time.
         </p>
+
+        <!-- Database URL Input -->
+        <div class="space-y-1.5">
+          <label class="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider font-mono block">Firebase Database URL</label>
+          <input
+            id="sheet-firebase-url-input"
+            type="url"
+            value="${escapeHtml(activeUrl)}"
+            placeholder="https://your-band-default-rtdb.firebaseio.com"
+            class="w-full bg-[#0c0e14] border border-[#1e2332] focus:border-sky-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none font-mono"
+          />
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            id="btn-test-connect-firebase"
+            class="flex-1 py-3 px-4 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-xs rounded-xl tap-btn"
+          >
+            Connect & Save
+          </button>
+          ${activeUrl ? `
+            <button
+              id="btn-disconnect-firebase"
+              class="py-3 px-4 bg-[#181d28] hover:bg-[#232938] text-red-400 font-bold text-xs rounded-xl tap-btn border border-[#2b354c]"
+            >
+              Disconnect
+            </button>
+          ` : ''}
+        </div>
+
+        <!-- 3-Step Setup Guide -->
+        <div class="p-3.5 rounded-2xl bg-[#0c0e14] border border-[#1c2130] space-y-2 text-xs">
+          <span class="font-bold text-white block">Quick 2-Minute Free Setup:</span>
+          <ol class="list-decimal list-inside space-y-1 text-[#94a3b8] leading-relaxed">
+            <li>Go to <a href="https://console.firebase.google.com" target="_blank" class="text-sky-400 underline">console.firebase.google.com</a> (100% free, no credit card).</li>
+            <li>Click <strong>Add Project</strong>, name it (e.g. <em>our-band-tracker</em>).</li>
+            <li>Click <strong>Build ➔ Realtime Database ➔ Create Database</strong>.</li>
+            <li>Select <strong>Start in test mode</strong> (or set Rules to: <code class="font-mono text-white text-[10px] bg-[#141824] px-1 py-0.5 rounded">{".read": true, ".write": true}</code>).</li>
+            <li>Copy the database URL and paste it in the box above!</li>
+          </ol>
+        </div>
 
       </div>
     </div>
@@ -879,7 +965,7 @@ function attachEventListeners() {
   if (soundBtn) {
     soundBtn.addEventListener('click', () => {
       state.soundEnabled = !state.soundEnabled;
-      saveState();
+      saveState(true);
       render();
     });
   }
@@ -926,10 +1012,11 @@ function attachEventListeners() {
     if (b) b.addEventListener('click', () => { state.activeModal = 'roster'; render(); });
   });
 
-  const shareBtn = document.getElementById('btn-open-share');
-  const footerShareBtn = document.getElementById('footer-btn-share');
-  [shareBtn, footerShareBtn].forEach(b => {
-    if (b) b.addEventListener('click', () => { state.activeModal = 'share'; render(); });
+  const cloudStatusBtn = document.getElementById('header-btn-cloud-status');
+  const cloudBannerBtn = document.getElementById('btn-banner-cloud-setup');
+  const footerCloudBtn = document.getElementById('footer-btn-cloud');
+  [cloudStatusBtn, cloudBannerBtn, footerCloudBtn].forEach(b => {
+    if (b) b.addEventListener('click', () => { state.activeModal = 'cloud'; render(); });
   });
 
   const statsBtn = document.getElementById('btn-open-stats');
@@ -941,13 +1028,6 @@ function attachEventListeners() {
   // Export JSON Backup
   const footerExportBtn = document.getElementById('footer-btn-export');
   if (footerExportBtn) footerExportBtn.addEventListener('click', exportBackupJson);
-
-  // Sync banner actions
-  const syncApplyBtn = document.getElementById('btn-sync-apply');
-  if (syncApplyBtn) syncApplyBtn.addEventListener('click', applyIncomingSync);
-
-  const syncDismissBtn = document.getElementById('btn-sync-dismiss');
-  if (syncDismissBtn) syncDismissBtn.addEventListener('click', dismissIncomingSync);
 
   // Modal Close buttons
   const modalCloseBtn = document.getElementById('modal-close');
@@ -1055,25 +1135,47 @@ function attachEventListeners() {
     }
   }
 
-  // Share Modal Listeners
-  if (state.activeModal === 'share') {
-    const nativeShareBtn = document.getElementById('btn-native-share');
-    if (nativeShareBtn) nativeShareBtn.addEventListener('click', shareBandUpdate);
+  // Cloud Sync Modal Listeners
+  if (state.activeModal === 'cloud') {
+    const connectBtn = document.getElementById('btn-test-connect-firebase');
+    const input = document.getElementById('sheet-firebase-url-input');
+    if (connectBtn && input) {
+      connectBtn.addEventListener('click', async () => {
+        const rawUrl = input.value.trim();
+        if (!rawUrl) {
+          alert('Please enter your Firebase Database URL.');
+          return;
+        }
 
-    const copyBtn = document.getElementById('btn-copy-sync-link');
-    if (copyBtn) {
-      copyBtn.addEventListener('click', async () => {
-        const url = getSyncUrl();
-        try {
-          await navigator.clipboard.writeText(url);
-          showToast('Sync link copied to clipboard!');
-        } catch (e) {
-          const input = document.getElementById('sheet-sync-input');
-          if (input) {
-            input.select();
-            document.execCommand('copy');
-            showToast('Link copied!');
+        connectBtn.textContent = 'Connecting...';
+        state.firebaseUrl = rawUrl;
+        localStorage.setItem('band_firebase_url', rawUrl);
+
+        const success = await fetchFromCloud();
+        if (success) {
+          initRealtimeLiveSync();
+          showToast('Connected to Firebase! Live auto-sync active.');
+          state.activeModal = null;
+        } else {
+          showToast('Connection failed. Please check the URL and rules.');
+        }
+        render();
+      });
+    }
+
+    const disconnectBtn = document.getElementById('btn-disconnect-firebase');
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', () => {
+        if (window.confirm('Disconnect Firebase cloud sync and use local mode?')) {
+          state.firebaseUrl = '';
+          localStorage.removeItem('band_firebase_url');
+          if (cloudEventSource) {
+            cloudEventSource.close();
+            cloudEventSource = null;
           }
+          state.cloudStatus = 'unconfigured';
+          showToast('Disconnected from Firebase.');
+          render();
         }
       });
     }
@@ -1126,14 +1228,14 @@ function registerServiceWorker() {
 }
 
 // Initial Boot
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   loadState();
-  checkIncomingSync();
   render();
   registerServiceWorker();
 
-  window.addEventListener('hashchange', () => {
-    checkIncomingSync();
-    render();
-  });
+  const activeUrl = getActiveFirebaseUrl();
+  if (activeUrl) {
+    await fetchFromCloud();
+    initRealtimeLiveSync();
+  }
 });

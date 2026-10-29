@@ -29,15 +29,30 @@
   - Customize the band name (e.g., *"The Soundwaves"*).
 - 📊 **Payment Fair-Share Statistics**:
   - View total rehearsal sessions logged and an exact count and percentage breakdown of who paid how many times.
-- 🔗 **Zero-Backend Band Sync Links**:
-  - Because GitHub Pages has no database backend, state is shared between band members via **Sync Links**.
-  - Tap **"Share to Band Chat"** to send a link to your band's WhatsApp or Messenger group.
-  - When bandmates open the link on their phones, their tracker prompts: *"Update received! Apply sync?"* and updates their local phone state in 1 tap!
+- ⚡ **Real-Time Live Cloud Sync (Firebase)**:
+  - Connect a free Google Firebase Realtime Database URL once.
+  - Whenever anyone marks paid, **all band members' phones update live in real-time** (no manual link sharing required).
+  - Uses native browser streaming (`EventSource`) with zero heavy SDKs.
 - 📱 **PWA & Offline Capable**:
   - Underground rehearsal rooms often have zero mobile signal. This tracker includes a Service Worker and Web App Manifest. Band members can add it to their iOS or Android home screen and run it completely offline.
 - 🚀 **100% Zero-Build & Instant Load**:
   - Written in vanilla modern JavaScript and responsive CSS.
   - No `node_modules`, no Webpack/Vite build pipeline, and no Babel in-browser overhead. Loads in **under 20ms**.
+
+---
+
+## 🔥 Setting Up Free Live Cloud Sync (2 Minutes)
+
+To make everyone's phone update automatically whenever someone taps "Paid":
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) (100% free forever, no credit card required).
+2. Click **Add project** and enter a name (e.g. `our-band-tracker`).
+3. In the left sidebar, click **Build** ➔ **Realtime Database** ➔ **Create Database**.
+4. Choose **Start in test mode** (Rules: `{ ".read": true, ".write": true }`).
+5. Copy your database URL (e.g., `https://your-band-default-rtdb.firebaseio.com`).
+6. Paste it into [`src/config.js`](file:///src/config.js) in your repository, or tap **"Cloud Setup"** inside the app on your phone.
+
+That's it! Every band member who opens the website is now connected to live real-time sync.
 
 ---
 

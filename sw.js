@@ -3,6 +3,7 @@ const CACHE_NAME = 'rehearsal-tracker-v1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './src/config.js',
   './src/app.js',
   './src/styles.css',
   './src/icons.js',
