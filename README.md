@@ -1,12 +1,9 @@
 # 🎸 Band Rehearsal Pay Tracker
 
 > **Never argue about who pays for the next band rehearsal again.**  
-> A lightweight, zero-dependency, mobile-first rotational pay queue designed for musicians and deployed effortlessly to **GitHub Pages**.
+> A lightweight, zero-dependency, mobile-first rotational payment queue for musicians, deployed on **GitHub Pages** with permanent **Firebase Realtime Database** cloud synchronization.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-success.svg)
-![Dependencies: Zero](https://img.shields.io/badge/Dependencies-0%20(Pure%20HTML%2FJS)-black.svg)
-![Design: Lean Mobile First](https://img.shields.io/badge/Design-Lean%20Mobile--First-green.svg)
+🌐 **Live App**: [https://calicdu.github.io/rehearsal-tracker/](https://calicdu.github.io/rehearsal-tracker/)
 
 ---
 
@@ -15,111 +12,47 @@
 - 🎯 **Crystal-Clear Visual Rotation**:
   - **Hero Card**: Highlights who pays for the upcoming rehearsal in huge bold text.
   - **Up Next Preview**: Previews who pays for the session after that so band members can prepare.
-  - **Queue Visualizer**: Shows the complete queue order with `#1`, `#2`, `#3`, etc. badges.
+  - **Queue Visualizer**: Shows the complete queue order with `#01`, `#02`, `#03`, etc. badges.
 - ⚡ **1-Click Advance & Optional Notes**:
-  - Mark payment complete with optional session notes (e.g., *"$60 at Soundstage Studio"* or *"2 hrs + drum kit rental"*).
-  - Web Audio musical arpeggio chime feedback on payment (with instant mute toggle).
+  - Mark payment complete with optional session notes (e.g., *"$50 @ Soundstage"* or *"2 hrs + drum kit rental"*).
+  - Subtle acoustic click feedback on action (with instant mute toggle).
 - ↩️ **Instant Undo Protection**:
   - Accidentally tapped the button? 1-tap **Undo** immediately rolls back the queue and removes the history record.
-- ⏭️ **Absent / Swap Turn**:
+- ⏭️ **Absent / Skip Turn**:
   - Member sick or on vacation this week? Swap turns with the next member without losing their place in line.
-- 👥 **Full Roster Customization**:
+- 👥 **Streamlined Roster & Band Editor**:
   - Add or remove band members anytime.
   - Reorder members using Move Up (▲) and Move Down (▼) buttons.
-  - Customize the band name (e.g., *"The Soundwaves"*).
+  - Customize the band name.
+  - Pure native input fields with zero typing lag or glitching—type your changes and tap **Save Changes** to commit to the database.
 - 📊 **Payment Fair-Share Statistics**:
-  - View total rehearsal sessions logged and an exact count and percentage breakdown of who paid how many times.
-- ⚡ **Real-Time Live Cloud Sync (Firebase)**:
-  - Connect a free Google Firebase Realtime Database URL once.
-  - Whenever anyone marks paid, **all band members' phones update live in real-time** (no manual link sharing required).
-  - Uses native browser streaming (`EventSource`) with zero heavy SDKs.
-- 📱 **PWA & Offline Capable**:
-  - Underground rehearsal rooms often have zero mobile signal. This tracker includes a Service Worker and Web App Manifest. Band members can add it to their iOS or Android home screen and run it completely offline.
+  - Tap the bar chart icon in the header to view total sessions logged and an exact count and percentage breakdown of who paid how many times.
+- ☁️ **Permanent Cloud Database Sync**:
+  - Hardcoded connection to Google Firebase Realtime Database.
+  - Every time a payment is logged or the roster is updated, it automatically syncs to the cloud.
+  - When bandmates open the app or return to the browser tab, the tracker automatically fetches the latest state.
+  - Zero setup required by band members: no URLs to enter and no accounts required.
+- 📱 **Mobile-First Obsidian & Slate Design**:
+  - Glare-free matte silver-slate primary action button (`#d4d9e1`) on an obsidian dark theme (`#090a0f`).
+  - Modern typography using Vercel's **Geist** and **Geist Mono**.
+  - Thumb-friendly mobile ergonomics (52px+ button touch targets, native bottom sheets).
+  - Minimalist layout with no clutter or unnecessary bars.
+- 📴 **PWA & Offline Capable**:
+  - Underground rehearsal rooms often have zero mobile signal. This tracker includes a Service Worker and Web App Manifest (`manifest.json`). Band members can add it to their iOS or Android home screen and run it completely offline.
 - 🚀 **100% Zero-Build & Instant Load**:
-  - Written in vanilla modern JavaScript and responsive CSS.
-  - No `node_modules`, no Webpack/Vite build pipeline, and no Babel in-browser overhead. Loads in **under 20ms**.
+  - Written in vanilla modern JavaScript and responsive utility CSS.
+  - No `node_modules`, no Webpack/Vite build pipeline, and no runtime compilation overhead. Loads in under 20ms.
 
 ---
 
-## 🔥 Setting Up Free Live Cloud Sync (2 Minutes)
+## 🛠️ Architecture & Tech Stack
 
-To make everyone's phone update automatically whenever someone taps "Paid":
-
-1. Go to [console.firebase.google.com](https://console.firebase.google.com) (100% free forever, no credit card required).
-2. Click **Add project** and enter a name (e.g. `our-band-tracker`).
-3. In the left sidebar, click **Build** ➔ **Realtime Database** ➔ **Create Database**.
-4. Choose **Start in test mode** (Rules: `{ ".read": true, ".write": true }`).
-5. Copy your database URL (e.g., `https://your-band-default-rtdb.firebaseio.com`).
-6. Paste it into [`src/config.js`](file:///src/config.js) in your repository, or tap **"Cloud Setup"** inside the app on your phone.
-
-That's it! Every band member who opens the website is now connected to live real-time sync.
-
----
-
-## 🚀 Deploying to GitHub Pages
-
-You can host this for free on GitHub Pages in under 2 minutes:
-
-### Step 1: Push this repo to GitHub
-```bash
-# If you haven't already added your remote:
-git remote add origin https://github.com/<YOUR-USERNAME>/rehearsal-tracker.git
-git add .
-git commit -m "feat: initial commit for band rehearsal tracker"
-git branch -M main
-git push -u origin main
-```
-
-### Step 2: Enable GitHub Pages in your repo
-1. Go to your repository on GitHub.
-2. Click **Settings** (top tabs) ➔ **Pages** (in the left sidebar).
-3. Under **Build and deployment**:
-   - **Source**: Select **Deploy from a branch**
-   - **Branch**: Select `main` and folder `/(root)`
-   - Click **Save**.
-4. *(Alternative)*: Select **GitHub Actions** as the source. A pre-configured deployment workflow (`.github/workflows/deploy.yml`) is already included in this repository and will deploy automatically on push!
-5. After ~1 minute, GitHub will give you your live URL:  
-   `https://<YOUR-USERNAME>.github.io/rehearsal-tracker/`
-
----
-
-## 📱 How Band Members Use It
-
-```
-[ Alex pays rehearsal ]
-         │
-         ▼
- Tap "Mark Paid & Advance Queue"
-         │
-         ▼
- Alex moves to back of line; Sam becomes #1
-         │
-         ▼
- Tap "Sync Link" ➔ "Share to Band Chat"
-         │
-         ▼
- Other band members tap link on their phones ➔ 1-tap "Apply Update"
-```
-
-1. **At Rehearsal**: The person whose turn it is pays the rehearsal studio.
-2. **Log Payment**: Tap **"Mark Paid & Advance Queue"** (optionally type the cost or studio name).
-3. **Share to Group Chat**: Click **"Sync Link"** and tap **"Share to Band Chat"**.
-4. **Band Stays in Sync**: Bandmates tap the link, tap **"Apply Update"**, and their phones show the new queue order!
-
----
-
-## 💻 Running Locally
-
-No installation or node setup required!
-
-### Option A: Double Click
-Simply double-click [`index.html`](file:///D:/coding/projects/rehearsal-tracker/index.html) in your file explorer to open it in any web browser.
-
-### Option B: Local Python Web Server
-```bash
-python -m http.server 8000
-```
-Then visit `http://localhost:8000` in your browser.
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5, Tailwind CSS (via CDN).
+- **Typography**: Geist & Geist Mono (via Google Fonts).
+- **Icons**: Custom embedded SVG library (`src/icons.js`) with zero external font/script dependencies.
+- **Audio**: Web Audio API oscillator synthesis (reusable singleton context).
+- **Storage**: Browser `localStorage` (instant offline persistence) + Google Firebase Realtime Database REST API.
+- **Hosting**: GitHub Pages via automated GitHub Actions workflow (`.github/workflows/deploy.yml`).
 
 ---
 
@@ -133,35 +66,49 @@ rehearsal-tracker/
 ├── .gitignore                  # Git ignore rules
 ├── index.html                  # Main production entry point for GitHub Pages
 ├── rehearsal_pay_tracker.html  # Backward-compatibility redirect to index.html
-├── manifest.json               # PWA Web App Manifest (install to home screen)
+├── manifest.json               # PWA Web App Manifest (install to mobile home screen)
 ├── sw.js                       # Service Worker for 100% offline functionality
 ├── assets/
 │   └── icons/
 │       └── icon.svg            # Custom SVG band icon & favicon
 ├── src/
-│   ├── app.js                  # Reactive state, rotation queue, sync & audio engine
-│   ├── icons.js                # Standalone SVG icon library (no CDN dependencies)
-│   └── styles.css              # Custom styling, glow animations & glassmorphism
+│   ├── app.js                  # State management, queue rotation, cloud sync & UI rendering
+│   ├── config.js               # Permanent Firebase Realtime Database URL
+│   ├── icons.js                # Standalone inline SVG icon dictionary
+│   └── styles.css              # Obsidian theme styling, animations & mobile ergonomics
 ├── LICENSE                     # MIT License
-└── README.md                   # Documentation & setup guide
+└── README.md                   # Documentation & project guide
 ```
 
 ---
 
-## 🛠️ Refactoring & Improvements Summary
+## 💻 Running Locally
 
-| Feature | Original HTML | Refactored Version |
-| :--- | :--- | :--- |
-| **GitHub Pages Ready** | `rehearsal_pay_tracker.html` (would 404 at root URL) | `index.html` as standard entrypoint + backward-compatible redirect |
-| **Runtime Performance** | In-browser Babel (~2.5MB download, console warnings, compile lag) | Pure native JavaScript (0 dependencies, ~15ms load, instant paint) |
-| **Icons Reliability** | Lucide DOM replacement script (caused React DOM reconciliation mismatches) | Clean inline SVG dictionary module (`src/icons.js`) |
-| **Roster Management** | Fixed 4 members only (could not add, delete, or reorder) | Add members, delete members, reorder up/down, custom band name |
-| **Undo Support** | None (accidental clicks could not be undone) | Instant 1-tap Undo for queue rotations and deletions |
-| **Absent / Swap** | None | 1-tap "Absent / Swap Turn" to swap #1 and #2 |
-| **Band Sharing / Sync** | Local to 1 browser only | 1-tap Share to WhatsApp / Sync Link / URL-hash synchronization |
-| **Audio Engine** | Created new `AudioContext` per click (browser crash after 6 clicks) | Singleton reused AudioContext with pleasant musical arpeggio |
-| **Payment Analytics** | Simple list only | Visual statistics & breakdown per band member |
-| **Offline Studio Support** | None | PWA manifest & Service Worker caching |
+No npm or build tools needed!
+
+### Option A: Double Click
+Double-click `index.html` in your file explorer to open it directly in any web browser.
+
+### Option B: Local Python Web Server
+```bash
+python -m http.server 8000
+```
+Then open `http://localhost:8000` in your browser.
+
+---
+
+## 🚀 Deployment & Updates
+
+The project is deployed to GitHub Pages at:  
+`https://calicdu.github.io/rehearsal-tracker/`
+
+Whenever you want to publish local changes:
+```bash
+git add .
+git commit -m "your commit message"
+git push origin main
+```
+GitHub Actions will automatically build and deploy the changes to GitHub Pages in ~30 seconds.
 
 ---
 

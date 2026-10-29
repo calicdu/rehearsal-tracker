@@ -1,8 +1,10 @@
 /**
  * Band Rehearsal Tracker - Modern Obsidian & Slate Edition
- * Featuring Automatic Real-Time Cloud Sync (Firebase Realtime Database)
- * Zero SDK dependencies - uses native fetch + EventSource streaming.
+ * Permanent Firebase Cloud Storage Integration
  */
+
+// Permanent hardcoded Firebase Realtime Database URL (from src/config.js or fallback)
+const activeDbUrl = (typeof FIREBASE_DB_URL !== 'undefined' ? FIREBASE_DB_URL : "https://rehearsal-tracker-cc229-default-rtdb.europe-west1.firebasedatabase.app").replace(/\/+$/, '');
 
 // Default starter roster
 const DEFAULT_MEMBERS = [
@@ -21,10 +23,7 @@ const state = {
   history: [],
   soundEnabled: true,
   undoStack: [],
-  activeModal: null, // 'roster' | 'share' | 'stats' | 'cloud' | null
-  firebaseUrl: '',
-  cloudStatus: 'unconfigured', // 'connected' | 'connecting' | 'unconfigured' | 'offline'
-  isSyncing: false
+  activeModal: null // 'roster' | 'stats' | null
 };
 
 // Web Audio API Context (reusable singleton)
@@ -72,17 +71,7 @@ function playTactileFeedback() {
 }
 
 /**
- * Get active Firebase database URL
- */
-function getActiveFirebaseUrl() {
-  const fromState = (state.firebaseUrl || '').trim();
-  const fromConfig = (typeof CLOUD_CONFIG !== 'undefined' && CLOUD_CONFIG.firebaseDbUrl ? CLOUD_CONFIG.firebaseDbUrl : '').trim();
-  const raw = fromState || fromConfig;
-  return raw.replace(/\/+$/, '');
-}
-
-/**
- * Storage Helpers
+ * Storage & Cloud Helpers
  */
 function loadState() {
   try {
@@ -103,15 +92,10 @@ function loadState() {
 
     const savedSound = localStorage.getItem('band_pay_sound');
     if (savedSound !== null) state.soundEnabled = savedSound === 'true';
-
-    const savedFbUrl = localStorage.getItem('band_firebase_url');
-    if (savedFbUrl) state.firebaseUrl = savedFbUrl;
   } catch (e) {
     console.error('Failed to load local state:', e);
   }
 }
-
-let cloudDebounceTimer = null;
 
 function saveState(skipCloud = false) {
   try {
@@ -119,7 +103,6 @@ function saveState(skipCloud = false) {
     localStorage.setItem('band_pay_history', JSON.stringify(state.history));
     localStorage.setItem('band_pay_name', state.bandName);
     localStorage.setItem('band_pay_sound', String(state.soundEnabled));
-    if (state.firebaseUrl) localStorage.setItem('band_firebase_url', state.firebaseUrl);
 
     if (!skipCloud) {
       syncToCloud();
@@ -130,28 +113,10 @@ function saveState(skipCloud = false) {
 }
 
 /**
- * Saves to localStorage immediately, and debounces cloud push
- * to prevent flickering/focus-loss while typing.
- */
-function debouncedSaveState(delayMs = 1000) {
-  try {
-    localStorage.setItem('band_pay_queue', JSON.stringify(state.queue));
-    localStorage.setItem('band_pay_name', state.bandName);
-    if (cloudDebounceTimer) clearTimeout(cloudDebounceTimer);
-    cloudDebounceTimer = setTimeout(() => {
-      syncToCloud();
-    }, delayMs);
-  } catch (e) {}
-}
-
-/**
- * Cloud Sync: Push update to Firebase Realtime Database
+ * Send state to Firebase Realtime Database
  */
 async function syncToCloud() {
-  const url = getActiveFirebaseUrl();
-  if (!url) return;
-
-  state.isSyncing = true;
+  if (!activeDbUrl) return;
   try {
     const payload = {
       bandName: state.bandName,
@@ -160,149 +125,40 @@ async function syncToCloud() {
       updatedAt: Date.now()
     };
 
-    const res = await fetch(`${url}/rehearsal.json`, {
+    await fetch(`${activeDbUrl}/rehearsal.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-
-    if (res.ok) {
-      state.cloudStatus = 'connected';
-    } else {
-      console.warn('Firebase sync HTTP error:', res.status);
-      state.cloudStatus = 'offline';
-    }
   } catch (err) {
-    console.warn('Firebase network error:', err);
-    state.cloudStatus = 'offline';
-  } finally {
-    state.isSyncing = false;
-    // Never re-render if a modal is open; doing so would destroy modal DOM, focus, scroll, and virtual keyboard
-    if (!state.activeModal) {
-      render();
-    }
+    console.warn('Firebase sync error:', err);
   }
 }
 
 /**
- * Cloud Sync: Fetch state from Firebase Realtime Database
+ * Fetch latest state from Firebase Realtime Database
  */
 async function fetchFromCloud() {
-  const url = getActiveFirebaseUrl();
-  if (!url) {
-    state.cloudStatus = 'unconfigured';
-    return false;
-  }
-
-  state.cloudStatus = 'connecting';
-  if (!state.activeModal) render();
-
+  if (!activeDbUrl) return false;
   try {
-    const res = await fetch(`${url}/rehearsal.json`);
-    if (!res.ok) {
-      state.cloudStatus = 'offline';
-      if (!state.activeModal) render();
-      return false;
-    }
+    const res = await fetch(`${activeDbUrl}/rehearsal.json`);
+    if (!res.ok) return false;
 
     const data = await res.json();
     if (data && Array.isArray(data.queue) && data.queue.length > 0) {
-      if (state.activeModal !== 'roster') {
-        state.queue = data.queue;
-        if (data.bandName) state.bandName = data.bandName;
-        if (Array.isArray(data.history)) state.history = data.history;
+      state.queue = data.queue;
+      if (data.bandName) state.bandName = data.bandName;
+      if (Array.isArray(data.history)) state.history = data.history;
+      saveState(true);
+      if (!state.activeModal) {
+        render();
       }
-      saveState(true); // save to localStorage without re-pushing
-      state.cloudStatus = 'connected';
-      if (!state.activeModal) render();
-      return true;
-    } else {
-      // Database exists but is empty -> push our current state to populate it
-      await syncToCloud();
-      state.cloudStatus = 'connected';
-      if (!state.activeModal) render();
       return true;
     }
   } catch (err) {
     console.warn('Failed to fetch from Firebase:', err);
-    state.cloudStatus = 'offline';
-    if (!state.activeModal) render();
-    return false;
   }
-}
-
-/**
- * Real-time SSE Live Stream (Server-Sent Events)
- * Automatically updates this device whenever ANY other bandmate marks paid!
- */
-let cloudEventSource = null;
-function initRealtimeLiveSync() {
-  const url = getActiveFirebaseUrl();
-  if (!url) return;
-
-  if (cloudEventSource) {
-    cloudEventSource.close();
-    cloudEventSource = null;
-  }
-
-  try {
-    // Native browser EventSource connecting to Firebase RTDB stream
-    cloudEventSource = new EventSource(`${url}/rehearsal.json`);
-
-    cloudEventSource.addEventListener('put', (e) => {
-      try {
-        const payload = JSON.parse(e.data);
-        if (!payload) return;
-
-        if (payload.path === '/' && payload.data && Array.isArray(payload.data.queue)) {
-          // If user is currently editing the roster in the modal, do not disrupt with incoming SSE updates or loopbacks
-          if (state.activeModal === 'roster') {
-            return;
-          }
-
-          // Check if incoming state is different from local state
-          const currentFirstId = state.queue[0]?.id;
-          const incomingFirstId = payload.data.queue[0]?.id;
-          const historyChanged = (payload.data.history?.length || 0) !== state.history.length;
-
-          state.queue = payload.data.queue;
-          if (payload.data.bandName) state.bandName = payload.data.bandName;
-          if (Array.isArray(payload.data.history)) state.history = payload.data.history;
-
-          saveState(true);
-          state.cloudStatus = 'connected';
-
-          if (currentFirstId !== incomingFirstId || historyChanged) {
-            playTactileFeedback();
-            const nextPayer = state.queue[0]?.name || 'Next member';
-            showToast(`Live update from bandmate! Next up: ${nextPayer}`);
-          }
-          if (!state.activeModal) {
-            render();
-          }
-        } else if (payload.path && payload.path !== '/') {
-          if (!state.activeModal) {
-            fetchFromCloud();
-          }
-        }
-      } catch (parseErr) {
-        console.warn('SSE parsing error:', parseErr);
-      }
-    });
-
-    cloudEventSource.onopen = () => {
-      state.cloudStatus = 'connected';
-      if (!state.activeModal) render();
-    };
-
-    cloudEventSource.onerror = () => {
-      // EventSource auto-reconnects natively
-      state.cloudStatus = 'offline';
-      if (!state.activeModal) render();
-    };
-  } catch (err) {
-    console.warn('EventSource initialization error:', err);
-  }
+  return false;
 }
 
 /**
@@ -483,80 +339,56 @@ function render() {
   const currentPayer = state.queue[0] || { name: 'No Members', role: 'Tap Roster to add' };
   const nextPayer = state.queue[1] || (state.queue[0] ? { name: state.queue[0].name, role: 'Only 1 member' } : { name: '-', role: '' });
   const hasUndo = state.undoStack.length > 0;
-  const isCloudConnected = state.cloudStatus === 'connected';
 
   app.innerHTML = `
-    <!-- Top Modern Header -->
-    <header class="py-3.5 flex items-center justify-between border-b border-[#1f2433] gap-2">
-      <div class="flex items-center space-x-2.5 min-w-0 flex-1">
-        <div class="w-8 h-8 rounded-lg bg-[#141824] border border-[#23293a] flex items-center justify-center text-sky-400 flex-shrink-0">
-          ${icon('music', 'w-4 h-4')}
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <h1 class="text-base font-bold text-white truncate leading-tight">${escapeHtml(state.bandName)}</h1>
-            <!-- Cloud Status Badge -->
-            <button 
-              id="header-btn-cloud-status"
-              title="${isCloudConnected ? 'Connected to Firebase (Realtime Live Sync)' : 'Firebase cloud sync not connected. Tap to setup.'}"
-              class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-medium tap-btn ${
-                isCloudConnected 
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' 
-                  : state.cloudStatus === 'connecting'
-                  ? 'bg-sky-500/10 text-sky-400 border border-sky-500/25'
-                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/25'
-              }"
-            >
-              <span class="w-1.5 h-1.5 rounded-full ${isCloudConnected ? 'bg-emerald-400 animate-pulse' : state.cloudStatus === 'connecting' ? 'bg-sky-400 animate-ping' : 'bg-amber-400'}"></span>
-              <span>${isCloudConnected ? 'Live' : state.cloudStatus === 'connecting' ? 'Syncing' : 'Cloud Setup'}</span>
-            </button>
-          </div>
-          <p class="text-[11px] text-[#94a3b8] truncate font-mono">${state.queue.length} in rotation</p>
-        </div>
+    <!-- Top Modern Header (Two-Row Layout for Full Band Name & Thumb Ergonomics) -->
+    <header class="py-3 border-b border-[#1f2433] space-y-2">
+      <!-- Row 1: Full Band Name (Unclipped, full width, word-wrap) -->
+      <div class="flex items-center justify-between gap-2">
+        <h1 class="text-xl sm:text-2xl font-black text-white leading-tight break-words flex-1 tracking-tight">
+          ${escapeHtml(state.bandName)}
+        </h1>
       </div>
 
-      <div class="flex items-center space-x-0.5 flex-shrink-0">
-        <button 
-          id="btn-sound-toggle"
-          title="${state.soundEnabled ? 'Mute' : 'Unmute'}"
-          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
-        >
-          ${icon(state.soundEnabled ? 'volume2' : 'volumeX', 'w-4 h-4')}
-        </button>
+      <!-- Row 2: Rotation count + Quick action buttons -->
+      <div class="flex items-center justify-between gap-2 pt-0.5">
+        <div class="flex items-center gap-1.5 font-mono text-[11px] text-[#818ea3] min-w-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0"></span>
+          <span class="truncate">${state.queue.length} in rotation</span>
+        </div>
 
-        <button 
-          id="btn-open-stats"
-          title="Payment Stats"
-          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
-        >
-          ${icon('barChart', 'w-4 h-4')}
-        </button>
+        <div class="flex items-center space-x-1.5 flex-shrink-0">
+          <button 
+            id="btn-sound-toggle"
+            title="${state.soundEnabled ? 'Mute click sound' : 'Unmute click sound'}"
+            class="w-7 h-7 flex items-center justify-center rounded-lg bg-[#141824] border border-[#23293a] text-[#94a3b8] hover:text-white tap-btn"
+          >
+            ${icon(state.soundEnabled ? 'volume2' : 'volumeX', 'w-3.5 h-3.5')}
+          </button>
 
-        <button 
-          id="btn-open-roster"
-          title="Roster & Cloud Settings"
-          class="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#141824] tap-btn"
-        >
-          ${icon('settings', 'w-4 h-4')}
-        </button>
+          <button 
+            id="btn-open-stats"
+            title="Payment Fair-Share Stats"
+            class="px-2 h-7 flex items-center justify-center gap-1 rounded-lg bg-[#141824] border border-[#23293a] text-[#94a3b8] hover:text-white tap-btn text-[11px] font-medium"
+          >
+            ${icon('barChart', 'w-3.5 h-3.5')}
+            <span>Stats</span>
+          </button>
+
+          <button 
+            id="btn-open-roster"
+            title="Roster & Band Settings"
+            class="px-2.5 h-7 flex items-center justify-center gap-1 rounded-lg bg-sky-500/10 border border-sky-500/25 text-sky-400 hover:text-sky-300 tap-btn text-[11px] font-semibold"
+          >
+            ${icon('settings', 'w-3.5 h-3.5')}
+            <span>Roster</span>
+          </button>
+        </div>
       </div>
     </header>
 
     <!-- Main Content -->
-    <main class="py-4 space-y-4 flex-grow">
-
-      <!-- Unconfigured Cloud Banner (Encouraging 1-time setup) -->
-      ${state.cloudStatus === 'unconfigured' ? `
-        <div class="lean-card p-3.5 bg-[#121622] border-amber-500/30 flex items-center justify-between gap-3 shadow-sm">
-          <div class="min-w-0 text-xs flex-1">
-            <span class="font-bold text-amber-400 block">Auto-Sync Across All Phones</span>
-            <span class="text-[#94a3b8] truncate block">Connect a free Firebase database URL so every band member's phone updates automatically.</span>
-          </div>
-          <button id="btn-banner-cloud-setup" class="px-3 py-1.5 text-xs font-bold bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] rounded-lg tap-btn flex-shrink-0">
-            Setup
-          </button>
-        </div>
-      ` : ''}
+    <main class="py-4 pb-20 space-y-5">
 
       <!-- HERO: WHO PAYS NEXT (Crisp Modern Card) -->
       <section class="lean-card p-4 sm:p-5 space-y-4 shadow-sm">
@@ -720,18 +552,8 @@ function render() {
 
     </main>
 
-    <!-- Modern Footer -->
-    <footer class="py-4 border-t border-[#1f2433] text-center text-xs text-[#64748b] flex items-center justify-center gap-3">
-      <button id="footer-btn-cloud" class="hover:text-white tap-btn">Cloud Sync</button>
-      <span>•</span>
-      <button id="footer-btn-stats" class="hover:text-white tap-btn">Stats</button>
-      <span>•</span>
-      <button id="footer-btn-export" class="hover:text-white tap-btn">Backup JSON</button>
-    </footer>
-
     <!-- MOBILE BOTTOM SHEETS -->
     ${state.activeModal === 'roster' ? renderRosterSheet() : ''}
-    ${state.activeModal === 'cloud' ? renderCloudSheet() : ''}
     ${state.activeModal === 'stats' ? renderStatsSheet() : ''}
   `;
 
@@ -739,19 +561,22 @@ function render() {
 }
 
 /**
- * Mobile Bottom Sheet: Roster & Band Settings
+ * Mobile Bottom Sheet: Roster & Band Settings (Pure Uncontrolled Inputs)
  */
 function renderRosterSheet() {
   return `
-    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
-      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div id="modal-backdrop" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4 max-h-[88vh] overflow-y-auto overscroll-contain pb-8">
         
         <!-- Sheet Drag Handle -->
         <div class="w-10 h-1 bg-[#283042] rounded-full mx-auto"></div>
 
         <div class="flex items-center justify-between pb-2 border-b border-[#1f2433]">
-          <h3 class="font-bold text-white text-base">Band & Roster Settings</h3>
-          <button id="modal-close" class="p-1 text-[#94a3b8] hover:text-white tap-btn">
+          <div>
+            <h3 class="font-bold text-white text-base">Band & Roster Settings</h3>
+            <p class="text-xs text-[#94a3b8]">Edit names, roles, or order, then tap Save Changes.</p>
+          </div>
+          <button id="modal-close" class="p-1.5 text-[#94a3b8] hover:text-white tap-btn">
             ${icon('x', 'w-5 h-5')}
           </button>
         </div>
@@ -774,7 +599,7 @@ function renderRosterSheet() {
             <span>${state.queue.length} members</span>
           </div>
 
-          <div class="space-y-2 max-h-56 overflow-y-auto pr-0.5">
+          <div class="space-y-2">
             ${state.queue.map((m, idx) => `
               <div class="flex items-center space-x-2 bg-[#0c0e14] p-2 rounded-xl border border-[#1c2130]">
                 <span class="font-mono text-xs font-bold text-[#64748b] w-5 text-center flex-shrink-0">
@@ -784,19 +609,17 @@ function renderRosterSheet() {
                 <input
                   type="text"
                   data-idx="${idx}"
-                  data-field="name"
                   value="${escapeHtml(m.name)}"
                   placeholder="Name"
-                  class="flex-1 min-w-0 bg-[#141824] border border-[#23293a] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-400"
+                  class="roster-name-input flex-1 min-w-0 bg-[#141824] border border-[#23293a] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-400"
                 />
 
                 <input
                   type="text"
                   data-idx="${idx}"
-                  data-field="role"
                   value="${escapeHtml(m.role || '')}"
                   placeholder="Instrument"
-                  class="flex-1 min-w-0 bg-[#141824] border border-[#23293a] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-400"
+                  class="roster-role-input flex-1 min-w-0 bg-[#141824] border border-[#23293a] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-sky-400"
                 />
 
                 <div class="flex items-center space-x-1 flex-shrink-0">
@@ -844,87 +667,14 @@ function renderRosterSheet() {
           <button id="btn-reset-defaults" class="text-xs text-[#94a3b8] hover:text-red-400 tap-btn">
             Reset Defaults
           </button>
-          <button id="sheet-btn-done" class="px-5 py-2.5 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-xs rounded-xl tap-btn">
-            Done
-          </button>
-        </div>
-
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Mobile Bottom Sheet: Firebase Cloud Sync Setup
- */
-function renderCloudSheet() {
-  const activeUrl = getActiveFirebaseUrl();
-  const isConnected = state.cloudStatus === 'connected';
-
-  return `
-    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
-      <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-        
-        <div class="w-10 h-1 bg-[#283042] rounded-full mx-auto"></div>
-
-        <div class="flex items-center justify-between pb-2 border-b border-[#1f2433]">
           <div class="flex items-center gap-2">
-            <h3 class="font-bold text-white text-base">Firebase Realtime Sync</h3>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono ${
-              isConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' : 'bg-amber-500/10 text-amber-400 border border-amber-500/25'
-            }">
-              <span class="w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
-              <span>${isConnected ? 'Connected' : 'Not Connected'}</span>
-            </span>
-          </div>
-          <button id="modal-close" class="p-1 text-[#94a3b8] hover:text-white tap-btn">
-            ${icon('x', 'w-5 h-5')}
-          </button>
-        </div>
-
-        <p class="text-xs text-[#94a3b8] leading-relaxed">
-          Connect your free <strong>Google Firebase Realtime Database</strong> so whenever anyone marks paid, every band member's phone updates automatically in real-time.
-        </p>
-
-        <!-- Database URL Input -->
-        <div class="space-y-1.5">
-          <label class="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wider font-mono block">Firebase Database URL</label>
-          <input
-            id="sheet-firebase-url-input"
-            type="url"
-            value="${escapeHtml(activeUrl)}"
-            placeholder="https://your-band-default-rtdb.firebaseio.com"
-            class="w-full bg-[#0c0e14] border border-[#1e2332] focus:border-sky-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none font-mono"
-          />
-        </div>
-
-        <div class="flex gap-2">
-          <button
-            id="btn-test-connect-firebase"
-            class="flex-1 py-3 px-4 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-xs rounded-xl tap-btn"
-          >
-            Connect & Save
-          </button>
-          ${activeUrl ? `
-            <button
-              id="btn-disconnect-firebase"
-              class="py-3 px-4 bg-[#181d28] hover:bg-[#232938] text-red-400 font-bold text-xs rounded-xl tap-btn border border-[#2b354c]"
-            >
-              Disconnect
+            <button id="sheet-btn-cancel" class="px-3 py-2 text-xs text-[#94a3b8] hover:text-white font-medium tap-btn">
+              Cancel
             </button>
-          ` : ''}
-        </div>
-
-        <!-- 3-Step Setup Guide -->
-        <div class="p-3.5 rounded-2xl bg-[#0c0e14] border border-[#1c2130] space-y-2 text-xs">
-          <span class="font-bold text-white block">Quick 2-Minute Free Setup:</span>
-          <ol class="list-decimal list-inside space-y-1 text-[#94a3b8] leading-relaxed">
-            <li>Go to <a href="https://console.firebase.google.com" target="_blank" class="text-sky-400 underline">console.firebase.google.com</a> (100% free, no credit card).</li>
-            <li>Click <strong>Add Project</strong>, name it (e.g. <em>our-band-tracker</em>).</li>
-            <li>Click <strong>Build ➔ Realtime Database ➔ Create Database</strong>.</li>
-            <li>Select <strong>Start in test mode</strong> (or set Rules to: <code class="font-mono text-white text-[10px] bg-[#141824] px-1 py-0.5 rounded">{".read": true, ".write": true}</code>).</li>
-            <li>Copy the database URL and paste it in the box above!</li>
-          </ol>
+            <button id="sheet-btn-save" class="px-5 py-2.5 bg-[#d4d9e1] hover:bg-[#c3c9d4] text-[#0b0e14] font-bold text-xs rounded-xl tap-btn">
+              Save Changes
+            </button>
+          </div>
         </div>
 
       </div>
@@ -933,14 +683,14 @@ function renderCloudSheet() {
 }
 
 /**
- * Mobile Bottom Sheet: Statistics
+ * Mobile Bottom Sheet: Payment Fair-Share Stats
  */
 function renderStatsSheet() {
   const stats = getMemberStats();
   const total = state.history.length;
 
   return `
-    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+    <div id="modal-backdrop" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
       <div class="modal-sheet w-full max-w-lg mx-auto bg-[#11141c] border-t border-[#1f2433] rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         
         <div class="w-10 h-1 bg-[#283042] rounded-full mx-auto"></div>
@@ -966,10 +716,10 @@ function renderStatsSheet() {
                 <div class="p-2.5 rounded-xl bg-[#0c0e14] border border-[#1c2130] space-y-1.5 text-xs">
                   <div class="flex justify-between items-center">
                     <span class="font-bold text-white">${escapeHtml(name)}</span>
-                    <span class="font-mono text-sky-400 font-bold">${count} paid (${pct}%)</span>
+                    <span class="font-mono text-[#94a3b8]">${count} paid <span class="text-[#64748b]">(${pct}%)</span></span>
                   </div>
-                  <div class="w-full bg-[#181d28] rounded-full h-1 overflow-hidden">
-                    <div class="bg-sky-400 h-1 rounded-full" style="width: ${pct}%"></div>
+                  <div class="w-full bg-[#161a26] rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-sky-400 h-1.5 rounded-full transition-all" style="width: ${pct}%"></div>
                   </div>
                 </div>
               `;
@@ -977,7 +727,7 @@ function renderStatsSheet() {
           </div>
         </div>
 
-        <button id="sheet-btn-done" class="w-full py-2.5 bg-[#181d28] hover:bg-[#232938] text-white font-bold text-xs rounded-xl tap-btn border border-[#2b354c]">
+        <button id="modal-close" class="w-full py-3 bg-[#161a26] hover:bg-[#1d2232] text-white font-bold text-xs rounded-xl tap-btn border border-[#273044]">
           Close
         </button>
 
@@ -1042,108 +792,73 @@ function attachEventListeners() {
     if (b) b.addEventListener('click', () => { state.activeModal = 'roster'; render(); });
   });
 
-  const cloudStatusBtn = document.getElementById('header-btn-cloud-status');
-  const cloudBannerBtn = document.getElementById('btn-banner-cloud-setup');
-  const footerCloudBtn = document.getElementById('footer-btn-cloud');
-  [cloudStatusBtn, cloudBannerBtn, footerCloudBtn].forEach(b => {
-    if (b) b.addEventListener('click', () => { state.activeModal = 'cloud'; render(); });
-  });
-
   const statsBtn = document.getElementById('btn-open-stats');
-  const footerStatsBtn = document.getElementById('footer-btn-stats');
-  [statsBtn, footerStatsBtn].forEach(b => {
-    if (b) b.addEventListener('click', () => { state.activeModal = 'stats'; render(); });
-  });
+  if (statsBtn) {
+    statsBtn.addEventListener('click', () => { state.activeModal = 'stats'; render(); });
+  }
 
-  // Export JSON Backup
-  const footerExportBtn = document.getElementById('footer-btn-export');
-  if (footerExportBtn) footerExportBtn.addEventListener('click', exportBackupJson);
-
-  // Modal Close buttons
-  const modalCloseBtn = document.getElementById('modal-close');
-  const sheetDoneBtn = document.getElementById('sheet-btn-done');
-  [modalCloseBtn, sheetDoneBtn].forEach(b => {
-    if (b) b.addEventListener('click', () => {
-      if (cloudDebounceTimer) clearTimeout(cloudDebounceTimer);
-      saveState(); // push any pending edits to cloud immediately
-      state.activeModal = null;
-      render();
+  // Generic modal backdrop / close buttons for non-roster sheets
+  if (state.activeModal === 'stats') {
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    document.querySelectorAll('#modal-close').forEach(btn => {
+      btn.addEventListener('click', () => { state.activeModal = null; render(); });
     });
-  });
-
-  // Roster Modal Listeners
-  if (state.activeModal === 'roster') {
-    const bandNameInput = document.getElementById('sheet-band-name');
-    if (bandNameInput) {
-      bandNameInput.addEventListener('input', (e) => {
-        state.bandName = e.target.value;
-        debouncedSaveState(1200);
+    if (modalBackdrop) {
+      modalBackdrop.addEventListener('click', (e) => {
+        if (e.target === modalBackdrop) { state.activeModal = null; render(); }
       });
-      bandNameInput.addEventListener('blur', () => {
-        if (!state.bandName.trim()) {
-          state.bandName = DEFAULT_BAND_NAME;
-          bandNameInput.value = DEFAULT_BAND_NAME;
+    }
+  }
+
+  // ROSTER MODAL (Clean, simple, no typing listeners)
+  if (state.activeModal === 'roster') {
+    // Reads current DOM input values into state without saving to cloud yet
+    function readRosterInputsIntoState() {
+      const bandNameInput = document.getElementById('sheet-band-name');
+      if (bandNameInput && bandNameInput.value.trim()) {
+        state.bandName = bandNameInput.value.trim();
+      }
+
+      document.querySelectorAll('.roster-name-input').forEach(input => {
+        const idx = parseInt(input.getAttribute('data-idx'), 10);
+        if (state.queue[idx]) {
+          const val = input.value.trim();
+          if (val) state.queue[idx].name = val;
         }
-        saveState();
+      });
+
+      document.querySelectorAll('.roster-role-input').forEach(input => {
+        const idx = parseInt(input.getAttribute('data-idx'), 10);
+        if (state.queue[idx]) {
+          state.queue[idx].role = input.value.trim();
+        }
       });
     }
 
-    // Member inline editing
-    document.querySelectorAll('[data-idx]').forEach(input => {
-      input.addEventListener('input', (e) => {
-        const idx = parseInt(input.getAttribute('data-idx'), 10);
-        const field = input.getAttribute('data-field');
-        if (state.queue[idx]) {
-          state.queue[idx][field] = e.target.value;
-          debouncedSaveState(1200);
-        }
+    // Save Changes button: sends to Firebase DB and saves locally
+    const saveBtn = document.getElementById('sheet-btn-save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        readRosterInputsIntoState();
+        state.activeModal = null;
+        saveState(); // Saves locally AND pushes to Firebase DB
+        render();
+        showToast('Roster saved to database!');
       });
-      input.addEventListener('change', () => {
-        saveState();
-      });
-    });
+    }
 
-    // Move Up
-    document.querySelectorAll('[data-up]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.getAttribute('data-up'), 10);
-        if (idx > 0) {
-          const item = state.queue.splice(idx, 1)[0];
-          state.queue.splice(idx - 1, 0, item);
-          saveState();
+    // Cancel / Close buttons: discard uncommitted modal changes
+    const cancelBtn = document.getElementById('sheet-btn-cancel');
+    const modalCloseBtn = document.getElementById('modal-close');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    [cancelBtn, modalCloseBtn, modalBackdrop].forEach(b => {
+      if (b) {
+        b.addEventListener('click', (e) => {
+          if (b === modalBackdrop && e.target !== modalBackdrop) return;
+          state.activeModal = null;
           render();
-        }
-      });
-    });
-
-    // Move Down
-    document.querySelectorAll('[data-down]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.getAttribute('data-down'), 10);
-        if (idx < state.queue.length - 1) {
-          const item = state.queue.splice(idx, 1)[0];
-          state.queue.splice(idx + 1, 0, item);
-          saveState();
-          render();
-        }
-      });
-    });
-
-    // Delete Member
-    document.querySelectorAll('[data-del]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.getAttribute('data-del'), 10);
-        if (state.queue.length <= 1) {
-          alert('You must have at least one member.');
-          return;
-        }
-        const m = state.queue[idx];
-        if (window.confirm(`Remove ${m.name}?`)) {
-          state.queue.splice(idx, 1);
-          saveState();
-          render();
-        }
-      });
+        });
+      }
     });
 
     // Add Member Form
@@ -1157,69 +872,63 @@ function attachEventListeners() {
         const role = roleInput.value.trim() || 'Band Member';
 
         if (name) {
+          readRosterInputsIntoState();
           state.queue.push({ id: 'm_' + Date.now(), name, role });
-          saveState();
-          nameInput.value = '';
-          roleInput.value = '';
           render();
         }
       });
     }
+
+    // Move Up
+    document.querySelectorAll('[data-up]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-up'), 10);
+        if (idx > 0) {
+          readRosterInputsIntoState();
+          const item = state.queue.splice(idx, 1)[0];
+          state.queue.splice(idx - 1, 0, item);
+          render();
+        }
+      });
+    });
+
+    // Move Down
+    document.querySelectorAll('[data-down]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-down'), 10);
+        if (idx < state.queue.length - 1) {
+          readRosterInputsIntoState();
+          const item = state.queue.splice(idx, 1)[0];
+          state.queue.splice(idx + 1, 0, item);
+          render();
+        }
+      });
+    });
+
+    // Delete Member
+    document.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-del'), 10);
+        if (state.queue.length <= 1) {
+          alert('You must have at least one member.');
+          return;
+        }
+        readRosterInputsIntoState();
+        const m = state.queue[idx];
+        if (window.confirm(`Remove ${m.name}?`)) {
+          state.queue.splice(idx, 1);
+          render();
+        }
+      });
+    });
 
     // Reset Defaults
     const resetBtn = document.getElementById('btn-reset-defaults');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
-        if (window.confirm('Reset roster to defaults?')) {
+        if (window.confirm('Reset roster to default band members?')) {
           state.queue = [...DEFAULT_MEMBERS];
           state.bandName = DEFAULT_BAND_NAME;
-          saveState();
-          render();
-        }
-      });
-    }
-  }
-
-  // Cloud Sync Modal Listeners
-  if (state.activeModal === 'cloud') {
-    const connectBtn = document.getElementById('btn-test-connect-firebase');
-    const input = document.getElementById('sheet-firebase-url-input');
-    if (connectBtn && input) {
-      connectBtn.addEventListener('click', async () => {
-        const rawUrl = input.value.trim();
-        if (!rawUrl) {
-          alert('Please enter your Firebase Database URL.');
-          return;
-        }
-
-        connectBtn.textContent = 'Connecting...';
-        state.firebaseUrl = rawUrl;
-        localStorage.setItem('band_firebase_url', rawUrl);
-
-        const success = await fetchFromCloud();
-        if (success) {
-          initRealtimeLiveSync();
-          showToast('Connected to Firebase! Live auto-sync active.');
-          state.activeModal = null;
-        } else {
-          showToast('Connection failed. Please check the URL and rules.');
-        }
-        render();
-      });
-    }
-
-    const disconnectBtn = document.getElementById('btn-disconnect-firebase');
-    if (disconnectBtn) {
-      disconnectBtn.addEventListener('click', () => {
-        if (window.confirm('Disconnect Firebase cloud sync and use local mode?')) {
-          state.firebaseUrl = '';
-          localStorage.removeItem('band_firebase_url');
-          if (cloudEventSource) {
-            cloudEventSource.close();
-            cloudEventSource = null;
-          }
-          state.cloudStatus = 'unconfigured';
-          showToast('Disconnected from Firebase.');
           render();
         }
       });
@@ -1228,28 +937,7 @@ function attachEventListeners() {
 }
 
 /**
- * Backup Export
- */
-function exportBackupJson() {
-  const data = {
-    bandName: state.bandName,
-    queue: state.queue,
-    history: state.history,
-    exportedAt: new Date().toISOString()
-  };
-  const jsonStr = JSON.stringify(data, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${state.bandName.toLowerCase().replace(/\s+/g, '-')}-rehearsal-data.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Backup JSON downloaded.');
-}
-
-/**
- * Escape HTML
+ * Utility: HTML Escaper to prevent XSS
  */
 function escapeHtml(str) {
   if (!str) return '';
@@ -1258,14 +946,14 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/'/g, '&#039;');
 }
 
 /**
- * Service Worker
+ * PWA Service Worker Registration
  */
 function registerServiceWorker() {
-  if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     });
@@ -1273,14 +961,24 @@ function registerServiceWorker() {
 }
 
 // Initial Boot
-window.addEventListener('DOMContentLoaded', async () => {
+function initApp() {
   loadState();
   render();
   registerServiceWorker();
 
-  const activeUrl = getActiveFirebaseUrl();
-  if (activeUrl) {
-    await fetchFromCloud();
-    initRealtimeLiveSync();
+  // Load latest state from Firebase once on startup
+  fetchFromCloud();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
+
+// Quietly check for fresh data when switching back to the browser tab
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !state.activeModal) {
+    fetchFromCloud();
   }
 });
